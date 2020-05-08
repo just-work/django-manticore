@@ -1,7 +1,7 @@
 from django.db import models
 from django.utils import timezone
 
-from manticore.models import SearchIndex
+from manticore.models import SearchIndex, JSONField
 
 
 class FieldMixin(SearchIndex):
@@ -13,7 +13,7 @@ class FieldMixin(SearchIndex):
     attr_bigint = models.BigIntegerField(default=0)
     attr_bool = models.BooleanField(default=False)
     attr_float = models.FloatField(default=0.0)
-    # attr_json = spx_models.SphinxJSONField(default={})
+    attr_json = JSONField(default={})
     # attr_multi_64 = spx_models.SphinxMulti64Field(default=[])
     # attr_multi = spx_models.SphinxMultiField(default=[])
     attr_string = models.CharField(max_length=32, default='')
