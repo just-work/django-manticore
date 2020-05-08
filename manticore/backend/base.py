@@ -44,6 +44,10 @@ class ManticoreFeatures(base.DatabaseFeatures):
     supports_transactions = False
     # django tries to check foreign key constraints in tests
     can_rollback_ddl = False
+    # select for update not supported
+    has_select_for_update = False
+    # savepoints not supported
+    uses_savepoints = False
 
 
 class ManticoreIntrospection(base.DatabaseIntrospection):

@@ -171,3 +171,34 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
 
         expected = {**self.defaults, **new_values}
         self.assert_object_fields(self.obj, **expected)
+
+    def test_get_or_create(self):
+        """ get_or_create works correctly."""
+        values = {**self.get_new_attr_values(), **self.get_new_field_values()}
+        attr_uint = values.pop('attr_uint')
+
+        obj, created = self.model.objects.get_or_create(
+            values, attr_uint=attr_uint)
+
+        self.assertTrue(created)
+        self.assert_object_fields(obj, attr_uint=attr_uint, **values)
+
+        obj, created = self.model.objects.get_or_create(
+            values, attr_uint=self.obj.attr_uint)
+        self.assert_object_fields(obj, **self.defaults)
+
+    def test_update_or_create(self):
+        """ update_or_create works correctly."""
+        values = {**self.get_new_attr_values(), **self.get_new_field_values()}
+        attr_uint = values.pop('attr_uint')
+
+        obj, created = self.model.objects.update_or_create(
+            values, attr_uint=attr_uint)
+
+        self.assertTrue(created)
+        self.assert_object_fields(obj, attr_uint=attr_uint, **values)
+
+        obj, created = self.model.objects.update_or_create(
+            values, attr_uint=self.obj.attr_uint)
+        self.assert_object_fields(obj, attr_uint=self.obj.attr_uint,
+                                  **values)
