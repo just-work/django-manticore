@@ -1,6 +1,7 @@
 from django.db.backends.mysql import compiler
 from django.db.models import sql
 
+from manticore.models import RTField, JSONField
 from manticore.models.sql.compiler import SphinxQLCompiler
 
 
@@ -20,11 +21,16 @@ class SQLInsertCompiler(compiler.SQLInsertCompiler, SphinxQLCompiler):
 class SQLUpdateCompiler(compiler.SQLUpdateCompiler, SphinxQLCompiler):
 
     def as_sql(self):
-        pk = self.__get_primary_key_value()
-        if pk is not None:
-            # rt fields cant be updated with UPDATE syntax, and if we are
-            # performing SearchIndex.save(), we can perform REPLACE
-            return self.__as_replace(pk)
+        if self.__is_index_field_update():
+            pk = self.__get_primary_key_value()
+            if pk is not None:
+                # rt fields cant be updated with UPDATE syntax, and if we are
+                # performing SearchIndex.save(), we can perform REPLACE
+                return self.__as_replace(pk)
+            else:
+                raise NotImplementedError(
+                    "Updating indexed fields is supported only by pk value"
+                )
         return super().as_sql()
 
     def __get_primary_key_value(self):
@@ -45,12 +51,18 @@ class SQLUpdateCompiler(compiler.SQLUpdateCompiler, SphinxQLCompiler):
     def __as_replace(self, pk):
         query = sql.InsertQuery(self.query.model)
         # noinspection PyProtectedMember
-        fields = [self.query.model._meta.pk]
+        opts = self.query.model._meta
+        fields = [opts.pk]
         obj = self.query.model()
         setattr(obj, 'pk', pk)
         for field, _, value in self.query.values:
             fields.append(field)
             setattr(obj, field.attname, value)
+        if set(fields) ^ set(opts.local_fields):
+            # If you call REPLACE omitting some attributes, manticore will
+            # store default empty values (0, '', [] etc...)
+            raise NotImplementedError(
+                "REPLACE query from save() with update_fields not supported")
         query.insert_values(fields, [obj], raw=False)
         insert_compiler = query.get_compiler(self.using, self.connection)
         sqls = insert_compiler.as_sql()
@@ -58,3 +70,9 @@ class SQLUpdateCompiler(compiler.SQLUpdateCompiler, SphinxQLCompiler):
         # INSERT -> REPLACE
         insert_sql = 'REPLACE' + insert_sql[6:]
         return insert_sql, params
+
+    def __is_index_field_update(self):
+        for field, _, _ in self.query.values:
+            if isinstance(field, (RTField, JSONField)):
+                return True
+        return False

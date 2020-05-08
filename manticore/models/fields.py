@@ -34,10 +34,15 @@ class JSONField(models.Field):
         return "JSONField"
 
     def get_prep_value(self, value):
+        if value is None:
+            # NULL can't be saved in attr_json
+            raise ValueError(value)
         return json.dumps(value)
 
     # noinspection PyMethodMayBeStatic,PyUnusedLocal
     def from_db_value(self, value, expression, connection):
+        if value is None:
+            return None
         return json.loads(value)
 
 

@@ -37,6 +37,28 @@ class SearchIndexTestCaseBase(BaseTestCase, TransactionTestCase):
         }
         return defaults
 
+    def get_new_attr_values(self):
+        new_values = {
+            'attr_uint': 200,
+            'attr_bool': False,
+            'attr_bigint': 2 ** 35,
+            'attr_float': 5.4321,
+            'attr_multi': [6, 7, 8],
+            'attr_multi_64': [2 ** 34, 2 ** 35],
+            'attr_timestamp': self.now + timedelta(seconds=60),
+            'attr_string': "another string",
+        }
+        return new_values
+
+    # noinspection PyMethodMayBeStatic
+    def get_new_field_values(self):
+        new_values = {
+            'attr_json': {"json": "other", 'add': 3},
+            'sphinx_field': "another_field",
+            'other_field': "another other",
+        }
+        return new_values
+
 
 class SearchIndexTestCase(SearchIndexTestCaseBase):
 
@@ -108,19 +130,15 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
         for k, v in numeric_lookups.items():
             self.assert_exists(**{k: v})
 
+    def test_json_field_null(self):
+        """ NULL in attr_json is not supported."""
+        self.obj.attr_json = None
+        with self.assertRaises(ValueError):
+            self.obj.save(update_fields=('attr_json',))
+
     def test_update_attributes(self):
         """ Attributes could be updated via model save with update_fields."""
-        new_values = {
-            'attr_uint': 200,
-            'attr_bool': False,
-            'attr_bigint': 2 ** 35,
-            'attr_float': 5.4321,
-            'attr_multi': [6, 7, 8],
-            'attr_multi_64': [2 ** 34, 2 ** 35],
-            'attr_timestamp': self.now + timedelta(seconds=60),
-            'attr_string': "another string",
-            'attr_json': {"json": "other", 'add': 3},
-        }
+        new_values = self.get_new_attr_values()
 
         for k, v in new_values.items():
             setattr(self.obj, k, v)
@@ -132,11 +150,24 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
 
     def test_update_indexed_fields(self):
         """ Indexed fields may be updated with REPLACE query."""
-        new_values = {
-            'sphinx_field': "another_field",
-            'other_field': "another other",
-        }
+        new_values = self.get_new_field_values()
         for k, v in new_values.items():
             setattr(self.obj, k, v)
-
         self.obj.save()
+        expected = {**self.defaults, **new_values}
+        self.assert_object_fields(self.obj, **expected)
+
+    def test_update_fields_with_indexed_fields(self):
+        """ REPLACE with update_fields is not supported."""
+        with self.assertRaises(NotImplementedError):
+            self.obj.save(update_fields=('sphinx_field',))
+
+    def test_queryset_update_attributes(self):
+        """ UPDATE for queryset is supported for attributes."""
+        qs = self.model.objects.filter(attr_uint=self.defaults['attr_uint'])
+        new_values = self.get_new_attr_values()
+
+        self.assertEqual(1, qs.update(**new_values))
+
+        expected = {**self.defaults, **new_values}
+        self.assert_object_fields(self.obj, **expected)
