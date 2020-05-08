@@ -32,8 +32,8 @@ class ManticoreRouter:
 
     def allow_migrate(self, db, app_label, model_name=None, **hints):
         if db != self.db_name:
-            return None
+            return False
         if not model_name:
-            return None
+            return False
         model = apps.get_model(app_label, model_name)
         return is_search_index(model)

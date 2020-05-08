@@ -20,7 +20,7 @@ class SQLInsertCompiler(compiler.SQLInsertCompiler, SphinxQLCompiler):
         if (isinstance(field, models.DateTimeField) and
                 isinstance(value, datetime)):
             # closest manticore datetime equivalent is attr_timestamp
-            return timezone.utc.normalize(value).timestamp()
+            return int(timezone.utc.normalize(value).timestamp())
         return super().prepare_value(field, value)
 
     def pre_save_val(self, field, obj):

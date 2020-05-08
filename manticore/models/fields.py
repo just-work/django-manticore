@@ -13,7 +13,7 @@ class JSONField(models.Field):
         return "JSONField"
 
     def get_prep_value(self, value):
-        return value
+        return json.dumps(value)
 
     # noinspection PyMethodMayBeStatic,PyUnusedLocal
     def from_db_value(self, value, expression, connection):

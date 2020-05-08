@@ -24,10 +24,11 @@ class DatabaseWrapper(base.DatabaseWrapper):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.creation = ManticoreCreation(self)
         self.features = ManticoreFeatures(self)
         self.introspection = ManticoreIntrospection(self)
-        self.validation = ManticoreValidation(self)
         self.ops = ManticoreOperations(self)
+        self.validation = ManticoreValidation(self)
 
     @cached_property
     def mysql_server_info(self):
@@ -39,7 +40,12 @@ class DatabaseWrapper(base.DatabaseWrapper):
 class ManticoreFeatures(base.DatabaseFeatures):
     # mysql detects this querying SELECT @@SQL_AUTO_IS_NULL, not supported
     is_sql_auto_is_null_enabled = False
+    # column definition NULL is not supported
     implied_column_null = True
+    # FIXME
+    supports_transactions = False
+    # django tries to check foreign key constraints in tests
+    can_rollback_ddl = False
 
 
 class ManticoreIntrospection(base.DatabaseIntrospection):
@@ -77,3 +83,34 @@ class ManticoreOperations(base.DatabaseOperations):
             if isinstance(value, int):
                 value = datetime.utcfromtimestamp(value)
         return super().convert_datetimefield_value(value, expression, connection)
+
+    def sql_flush(self, style, tables, sequences, allow_cascade=False):
+        if tables:
+            sql = []
+            for table in tables:
+                sql.append('%s %s;' % (
+                    style.SQL_KEYWORD('TRUNCATE RTINDEX'),
+                    style.SQL_FIELD(self.quote_name(table)),
+                ))
+            sql.extend(self.sequence_reset_by_name_sql(style, sequences))
+            return sql
+        else:
+            return []
+
+
+class ManticoreCreation(base.DatabaseCreation):
+
+    def create_test_db(self, *args, **kwargs):
+        # NOOP, test using regular manticore database.
+        if self.connection.settings_dict.get('TEST_NAME'):
+            # initialize connection database name
+            test_name = self.connection.settings_dict['TEST_NAME']
+            self.connection.close()
+            self.connection.settings_dict['NAME'] = test_name
+            self.connection.cursor()
+            return test_name
+        return self.connection.settings_dict['NAME']
+
+    def destroy_test_db(self, *args, **kwargs):
+        # NOOP, we created nothing, nothing to destroy.
+        return
