@@ -23,6 +23,7 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
             stub = RTField(name='__stub__')
             stub.column = stub.name
             stub.concrete = True
+            stub.attname = stub.name
             model._meta.local_fields.append(stub)
 
         super().create_model(model)

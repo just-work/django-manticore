@@ -4,6 +4,8 @@ from django.db import models
 
 __all__ = ['BigMultiField', 'JSONField', 'MultiField', 'RTField']
 
+from manticore.models import lookups
+
 
 class RTField(models.TextField):
     def db_type(self, connection):
@@ -45,6 +47,9 @@ class MultiField(models.PositiveIntegerField):
         return list(map(int, value.split(',')))
 
 
+MultiField.register_lookup(lookups.MultiExact)
+
+
 class BigMultiField(models.BigIntegerField):
     def db_type(self, connection):
         return 'multi64'
@@ -59,3 +64,6 @@ class BigMultiField(models.BigIntegerField):
     def from_db_value(self, value, expression, connection):
         value = value or ''
         return list(map(int, value.split(',')))
+
+
+BigMultiField.register_lookup(lookups.MultiExact)

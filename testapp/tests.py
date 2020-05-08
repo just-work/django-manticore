@@ -36,6 +36,17 @@ class SearchIndexTestCaseBase(BaseTestCase, TransactionTestCase):
 
 class SearchIndexTestCase(SearchIndexTestCaseBase):
 
+    def assert_exists(self, **kwargs):
+        try:
+            other = self.model.objects.get(**kwargs)
+            self.assertEqual(other.pk, self.obj.pk)
+        except self.model.DoesNotExist:  # pragma: no cover
+            self.fail("lookup failed for %s" % kwargs)
+
+    def assert_excluded(self, **kwargs):
+        items = list(self.model.objects.exclude(**kwargs))
+        self.assertFalse(items)
+
     def test_insert_attrs(self):
         """ Object inserted attributes are equal to retrieved from db."""
         self.assert_object_fields(self.obj, **self.defaults)
@@ -43,12 +54,39 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
     def test_filter_by_attributes(self):
         """ Filtering over attributes works."""
         exclude = ['attr_multi', 'attr_multi_64', 'attr_json', 'sphinx_field']
+        for key in self.defaults:
+            if key in exclude:
+                continue
+            value = getattr(self.obj, key)
+            self.assert_exists(**{key: value})
+
+    def test_filter_multi_fields(self):
+        """ Filtering over multi attributes works."""
+        multi_lookups = dict(
+            attr_multi=self.obj.attr_multi[0],
+            attr_multi_64=self.obj.attr_multi_64[0],
+            attr_multi__in=[self.obj.attr_multi[0], 100],
+            attr_multi_64__in=[self.obj.attr_multi_64[0], 1]
+        )
+        for key, value in multi_lookups.items():
+            self.assert_exists(**{key: value})
+
+    def test_exclude_by_attrs(self):
+        """ Exclude items by attributes works."""
+        exclude = ['attr_multi', 'attr_multi_64', 'attr_json', 'sphinx_field',
+                   'attr_float']
+        for key in self.defaults:
+            if key in exclude:
+                continue
+            value = getattr(self.obj, key)
+            self.assert_excluded(**{key: value})
+
+    def test_exclude_by_value_list(self):
+        exclude = ['attr_multi', 'attr_multi_64', 'attr_json', 'sphinx_field',
+                   'attr_float']
         for key in self.defaults.keys():
             if key in exclude:
                 continue
             value = getattr(self.obj, key)
-            try:
-                other = self.model.objects.get(**{key: value})
-            except self.model.DoesNotExist:  # pragma: no cover
-                self.fail("lookup failed for %s = %s" % (key, value))
-            self.assert_object_fields(other, **self.defaults)
+            filter_kwargs = {"%s__in" % key: [value]}
+            self.assert_excluded(**filter_kwargs)
