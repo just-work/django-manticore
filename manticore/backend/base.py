@@ -48,6 +48,8 @@ class ManticoreFeatures(base.DatabaseFeatures):
     has_select_for_update = False
     # savepoints not supported
     uses_savepoints = False
+    # used to return primary keys from LAST_INSERT_ID() function to bulk_create
+    can_return_rows_from_bulk_insert = True
 
 
 class ManticoreIntrospection(base.DatabaseIntrospection):

@@ -12,6 +12,28 @@ class SQLCompiler(SphinxQLCompiler):
 class SQLInsertCompiler(compiler.SQLInsertCompiler, SphinxQLCompiler):
 
     def execute_sql(self, returning_fields=None):
+        if returning_fields:
+            # when performing bulk_create, it is useful to fill primary keys
+            # for new inserted objects.
+            if (len(returning_fields) != 1 or
+                    not returning_fields[0].primary_key):
+                raise NotImplementedError("returning_fields not supported")
+            super().execute_sql(returning_fields=False)
+            with self.connection.cursor() as c:
+                c.execute("SELECT LAST_INSERT_ID()")
+                row = c.fetchone()
+            result = []
+            pks = list(map(int, row[0].split(',')))
+            if len(self.query.objs) > 1:
+                # bulk_create needs something like [[1], [2], [3]],
+                # but only if there are more than one objects inserted
+                for pk in pks:
+                    result.append([pk])
+            else:
+                # simple save(force_insert) needs not-a-list, see
+                # QuerySet._batched_insert
+                result = (pks[0],)
+            return result
         return super().execute_sql(returning_fields)
 
     def pre_save_val(self, field, obj):

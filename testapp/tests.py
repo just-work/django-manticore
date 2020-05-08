@@ -133,7 +133,7 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
     def test_json_field_null(self):
         """ NULL in attr_json is not supported."""
         self.obj.attr_json = None
-        with self.assertRaises(ValueError):
+        with self.assertRaises(NotImplementedError):
             self.obj.save(update_fields=('attr_json',))
 
     def test_update_attributes(self):
@@ -214,11 +214,7 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
         self.obj.delete()
         objs = [self.model(**self.defaults) for _ in range(10)]
         self.model.objects.bulk_create(objs)
-        with connections['manticore'].cursor() as c:
-            # FIXME: support in bulk_create
-            c.execute("SELECT LAST_INSERT_ID()")
-            result = c.fetchall()
-        expected = list(map(int, result[0][0].split(',')))
+        expected = [obj.pk for obj in objs]
         delete_ids = expected[3:7]
 
         self.model.objects.filter(id__in=delete_ids).delete()
@@ -227,3 +223,17 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
         self.assertEqual(len(qs), 0)
         qs = self.model.objects.all().values_list('id', flat=True)
         self.assertListEqual(list(qs), expected[:3] + expected[7:])
+
+    def test_bulk_create(self):
+        """ bulk_creates sets primary key value."""
+        objs = [self.model(**self.defaults) for _ in range(10)]
+        self.model.objects.bulk_create(objs)
+        for obj in objs:
+            self.assertIsNotNone(obj.pk)
+            self.assert_object_fields(obj, **self.defaults)
+
+    def test_bulk_create_single_object(self):
+        """ bulk_create works correctly for single object."""
+        objs = [self.model(**self.defaults)]
+        self.model.objects.bulk_create(objs)
+        self.assertIsNotNone(objs[0].pk)
