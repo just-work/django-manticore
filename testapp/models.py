@@ -5,7 +5,7 @@ from manticore.models import SearchIndex, JSONField
 from manticore.models.fields import MultiField, BigMultiField
 
 
-class FieldMixin(SearchIndex):
+class FieldMixin(models.Model):
     class Meta:
         abstract = True
     sphinx_field = models.TextField(default='')

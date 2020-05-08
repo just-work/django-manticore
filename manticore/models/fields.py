@@ -2,7 +2,15 @@ import json
 
 from django.db import models
 
-__all__ = ['JSONField', 'MultiField']
+__all__ = ['BigMultiField', 'JSONField', 'MultiField', 'RTField']
+
+
+class RTField(models.TextField):
+    def db_type(self, connection):
+        return 'text indexed'
+
+    def get_internal_type(self):
+        return "RTField"
 
 
 class JSONField(models.Field):

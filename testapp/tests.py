@@ -39,3 +39,16 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
     def test_insert_attrs(self):
         """ Object inserted attributes are equal to retrieved from db."""
         self.assert_object_fields(self.obj, **self.defaults)
+
+    def test_filter_by_attributes(self):
+        """ Filtering over attributes works."""
+        exclude = ['attr_multi', 'attr_multi_64', 'attr_json', 'sphinx_field']
+        for key in self.defaults.keys():
+            if key in exclude:
+                continue
+            value = getattr(self.obj, key)
+            try:
+                other = self.model.objects.get(**{key: value})
+            except self.model.DoesNotExist:  # pragma: no cover
+                self.fail("lookup failed for %s = %s" % (key, value))
+            self.assert_object_fields(other, **self.defaults)

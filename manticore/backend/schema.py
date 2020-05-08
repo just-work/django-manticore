@@ -1,5 +1,8 @@
+from django.db import models
 from django.db.backends.mysql import schema
 from django.db.models.fields import NOT_PROVIDED
+
+from manticore.models import RTField
 
 
 class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
@@ -8,6 +11,20 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
         raise NotImplementedError()
 
     def create_model(self, model):
+        # manticore search does not allow creating tables without rt fields,
+        # adding a stub field for it
+        has_rt_index = False
+        # noinspection PyProtectedMember
+        for f in model._meta.local_fields:
+            if isinstance(f, RTField):
+                has_rt_index = True
+                break
+        if not has_rt_index:
+            stub = RTField(name='__stub__')
+            stub.column = stub.name
+            stub.concrete = True
+            model._meta.local_fields.append(stub)
+
         super().create_model(model)
 
     def skip_default(self, field):

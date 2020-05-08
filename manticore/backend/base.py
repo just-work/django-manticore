@@ -12,10 +12,8 @@ class DatabaseWrapper(base.DatabaseWrapper):
     data_types = {
         **base.DatabaseWrapper.data_types,
         'AutoField': 'integer',
-        # CharField is stored_only_field (needed for django_migrations table)
-        'CharField': 'text stored',
-        # TextField is stored indexed field
-        'TextField': 'text indexed stored',
+        'CharField': 'string',
+        'TextField': 'string',
         'DateTimeField': 'timestamp',
         'FloatField': 'float',
     }
@@ -77,11 +75,17 @@ class ManticoreValidation(base.DatabaseValidation):
 class ManticoreOperations(base.DatabaseOperations):
     compiler_module = 'manticore.backend.compiler'
 
+    def adapt_datetimefield_value(self, value):
+        if isinstance(value, datetime):
+            # closest manticore datetime equivalent is attr_timestamp
+            return int(timezone.utc.normalize(value).timestamp())
+        return super().adapt_datetimefield_value(value)
+
     def convert_datetimefield_value(self, value, expression, connection):
-        # DateTime is
-        if value is not None:
-            if isinstance(value, int):
-                value = datetime.utcfromtimestamp(value)
+        if isinstance(value, int):
+            # closest manticore datetime equivalent is attr_timestamp, which
+            # stores datetime as unix utc timestamp
+            value = datetime.utcfromtimestamp(value)
         return super().convert_datetimefield_value(value, expression, connection)
 
     def sql_flush(self, style, tables, sequences, allow_cascade=False):
