@@ -8,8 +8,19 @@ from manticore.models import lookups
 
 
 class RTField(models.TextField):
+
+    def __init__(self, *, stored=True, **kwargs):
+        # null is not supported by manticore, '' is reasonable default
+        kwargs['null'] = False
+        kwargs['default'] = ''
+        self.stored = stored
+        super().__init__(**kwargs)
+
     def db_type(self, connection):
-        return 'text indexed'
+        sql = 'text indexed'
+        if self.stored:
+            sql += ' stored'
+        return sql
 
     def get_internal_type(self):
         return "RTField"

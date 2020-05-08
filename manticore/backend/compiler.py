@@ -1,8 +1,5 @@
-from datetime import datetime
-
-from django.db import models
 from django.db.backends.mysql import compiler
-from django.utils import timezone
+from django.db.models import sql
 
 from manticore.models.sql.compiler import SphinxQLCompiler
 
@@ -21,4 +18,43 @@ class SQLInsertCompiler(compiler.SQLInsertCompiler, SphinxQLCompiler):
 
 
 class SQLUpdateCompiler(compiler.SQLUpdateCompiler, SphinxQLCompiler):
-    pass
+
+    def as_sql(self):
+        pk = self.__get_primary_key_value()
+        if pk is not None:
+            # rt fields cant be updated with UPDATE syntax, and if we are
+            # performing SearchIndex.save(), we can perform REPLACE
+            return self.__as_replace(pk)
+        return super().as_sql()
+
+    def __get_primary_key_value(self):
+        """
+        Checks whether where clause is pk=value
+        """
+        if not self.query.where:
+            return
+        if len(self.query.where.children) != 1:
+            return
+        node = self.query.where.children[0]
+        if node.lookup_name != 'exact':
+            return
+        if not node.lhs.field.primary_key:
+            return
+        return node.rhs
+
+    def __as_replace(self, pk):
+        query = sql.InsertQuery(self.query.model)
+        # noinspection PyProtectedMember
+        fields = [self.query.model._meta.pk]
+        obj = self.query.model()
+        setattr(obj, 'pk', pk)
+        for field, _, value in self.query.values:
+            fields.append(field)
+            setattr(obj, field.attname, value)
+        query.insert_values(fields, [obj], raw=False)
+        insert_compiler = query.get_compiler(self.using, self.connection)
+        sqls = insert_compiler.as_sql()
+        insert_sql, params = sqls[0]
+        # INSERT -> REPLACE
+        insert_sql = 'REPLACE' + insert_sql[6:]
+        return insert_sql, params

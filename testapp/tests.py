@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.db import connections
 from django.test import TransactionTestCase
 from django.utils import timezone
@@ -15,7 +17,9 @@ class SearchIndexTestCaseBase(BaseTestCase, TransactionTestCase):
         self.now = timezone.utc.normalize(timezone.now()).replace(microsecond=0)
         self.defaults = self.get_model_defaults()
         with connections['manticore'].cursor() as c:
-            c.execute("TRUNCATE RTINDEX testapp_testmodel")
+            c.execute("SHOW TABLES LIKE %s", ('testapp_testmodel',))
+            if c.rowcount > 0:
+                c.execute("TRUNCATE RTINDEX testapp_testmodel")
         self.obj = self.model.objects.create(**self.defaults)
 
     def get_model_defaults(self):
@@ -90,3 +94,49 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
             value = getattr(self.obj, key)
             filter_kwargs = {"%s__in" % key: [value]}
             self.assert_excluded(**filter_kwargs)
+
+    def test_numeric_lookups(self):
+        """ Numeric fields could be compared to greater/less."""
+        numeric_lookups = dict(
+            attr_uint__gte=0,
+            attr_timestamp__gte=self.now,
+            attr_multi__gte=0,
+            attr_multi_64__gte=0,
+            attr_float__gte=0.0,
+        )
+
+        for k, v in numeric_lookups.items():
+            self.assert_exists(**{k: v})
+
+    def test_update_attributes(self):
+        """ Attributes could be updated via model save with update_fields."""
+        new_values = {
+            'attr_uint': 200,
+            'attr_bool': False,
+            'attr_bigint': 2 ** 35,
+            'attr_float': 5.4321,
+            'attr_multi': [6, 7, 8],
+            'attr_multi_64': [2 ** 34, 2 ** 35],
+            'attr_timestamp': self.now + timedelta(seconds=60),
+            'attr_string': "another string",
+            'attr_json': {"json": "other", 'add': 3},
+        }
+
+        for k, v in new_values.items():
+            setattr(self.obj, k, v)
+
+        # Check UPDATE mode (string attributes are not updated)
+        self.obj.save(update_fields=new_values.keys())
+
+        self.assert_object_fields(self.obj, **new_values)
+
+    def test_update_indexed_fields(self):
+        """ Indexed fields may be updated with REPLACE query."""
+        new_values = {
+            'sphinx_field': "another_field",
+            'other_field': "another other",
+        }
+        for k, v in new_values.items():
+            setattr(self.obj, k, v)
+
+        self.obj.save()

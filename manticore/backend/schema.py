@@ -1,4 +1,3 @@
-from django.db import models
 from django.db.backends.mysql import schema
 from django.db.models.fields import NOT_PROVIDED
 
@@ -15,18 +14,21 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
         # adding a stub field for it
         has_rt_index = False
         # noinspection PyProtectedMember
-        for f in model._meta.local_fields:
+        opts = model._meta
+        for f in opts.local_fields:
             if isinstance(f, RTField):
                 has_rt_index = True
                 break
         if not has_rt_index:
-            stub = RTField(name='__stub__')
-            stub.column = stub.name
-            stub.concrete = True
-            stub.attname = stub.name
-            model._meta.local_fields.append(stub)
+            stub = RTField(stored=False)
+            stub.contribute_to_class(model, 'stub')
 
-        super().create_model(model)
+            super().create_model(model)
+
+            # removing stub to prevent fetching non-stored field
+            opts.local_fields.remove(stub)
+        else:
+            super().create_model(model)
 
     def skip_default(self, field):
         # manticore does not support defaults at all
@@ -40,7 +42,7 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
                 field.default not in (None, NOT_PROVIDED)):
             effective_default = self.effective_default(field)
             # UPDATE needs WHERE clause
-            # noinspection SqlResolve,SqlNoDataSourceInspection,PyProtectedMember
+            # noinspection SqlNoDataSourceInspection,PyProtectedMember
             self.execute(
                 'UPDATE %(table)s SET %(column)s = %%s WHERE `id` > %%s' % {
                     'table': self.quote_name(model._meta.db_table),
