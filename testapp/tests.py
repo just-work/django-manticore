@@ -202,3 +202,28 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
             values, attr_uint=self.obj.attr_uint)
         self.assert_object_fields(obj, attr_uint=self.obj.attr_uint,
                                   **values)
+
+    def test_delete_object(self):
+        """ DELETE single object works."""
+        self.assertEqual(self.model.objects.count(), 1)
+        self.obj.delete()
+        self.assertEqual(self.model.objects.count(), 0)
+
+    def test_bulk_delete(self):
+        """ DELETE set of primary keys works."""
+        self.obj.delete()
+        objs = [self.model(**self.defaults) for _ in range(10)]
+        self.model.objects.bulk_create(objs)
+        with connections['manticore'].cursor() as c:
+            # FIXME: support in bulk_create
+            c.execute("SELECT LAST_INSERT_ID()")
+            result = c.fetchall()
+        expected = list(map(int, result[0][0].split(',')))
+        delete_ids = expected[3:7]
+
+        self.model.objects.filter(id__in=delete_ids).delete()
+
+        qs = self.model.objects.filter(id__in=delete_ids)
+        self.assertEqual(len(qs), 0)
+        qs = self.model.objects.all().values_list('id', flat=True)
+        self.assertListEqual(list(qs), expected[:3] + expected[7:])

@@ -16,12 +16,8 @@ class SphinxQLCompiler(compiler.SQLCompiler):
             return self.__compile_col(node)
         if isinstance(node, lookups.In):
             # col IN (values list) not supported, transforming to function call
-            return self.__compile_in(node)
+            return self._compile_in(node)
         return super().compile(node)
-
-    def __compile_col(self, node: expressions.Col):
-        qn = self.quote_name_unless_alias
-        return qn(node.target.column), ()
 
     def execute_sql(self, result_type=constants.MULTI, chunked_fetch=False,
                     chunk_size=constants.GET_ITERATOR_CHUNK_SIZE):
@@ -37,6 +33,10 @@ class SphinxQLCompiler(compiler.SQLCompiler):
             pass
 
         return super().as_sql(with_limits, with_col_aliases)
+
+    def __compile_col(self, node: expressions.Col):
+        qn = self.quote_name_unless_alias
+        return qn(node.target.column), ()
 
     def __maybe_move_where(self):
         if not self.query.where:
@@ -57,6 +57,6 @@ class SphinxQLCompiler(compiler.SQLCompiler):
             # by default 20 items are returned, setting to max value
             self.query.set_limits(high=2 ** 31 - 1)
 
-    def __compile_in(self, node: lookups.In):
+    def _compile_in(self, node: lookups.In):
         lookup = InFunction(node.lhs, node.rhs)
         return lookup.as_sql(self, self.connection)

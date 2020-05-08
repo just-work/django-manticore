@@ -1,5 +1,5 @@
 from django.db.backends.mysql import compiler
-from django.db.models import sql
+from django.db.models import sql, lookups
 
 from manticore.models import RTField, JSONField
 from manticore.models.sql.compiler import SphinxQLCompiler
@@ -76,3 +76,9 @@ class SQLUpdateCompiler(compiler.SQLUpdateCompiler, SphinxQLCompiler):
             if isinstance(field, (RTField, JSONField)):
                 return True
         return False
+
+
+class SQLDeleteCompiler(compiler.SQLDeleteCompiler, SphinxQLCompiler):
+    def _compile_in(self, node: lookups.In):
+        # DELETE supports WHERE id IN (values_list)
+        return node.as_sql(self, self.connection)
