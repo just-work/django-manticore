@@ -34,6 +34,6 @@ class ManticoreRouter:
         if db != self.db_name:
             return None
         if not model_name:
-            return True
+            return None
         model = apps.get_model(app_label, model_name)
         return is_search_index(model)
