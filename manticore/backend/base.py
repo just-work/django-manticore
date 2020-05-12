@@ -73,7 +73,8 @@ class ManticoreIntrospection(base.DatabaseIntrospection):
         # mysql uses 'SHOW FULL TABLES', not supported
         cursor.execute("SHOW TABLES")
         result = []
-        database_prefix = f'{self.connection.settings_dict["NAME"]}__'
+        db_name = self.connection.ops.db_name
+        database_prefix = f'{db_name}__' if db_name else None
         # manticore annotates real-time indices with "rt" type
         table_types = {
             'rt': 't'
@@ -83,10 +84,10 @@ class ManticoreIntrospection(base.DatabaseIntrospection):
             table_type = row[1]
             # multi-database support is implemented with table prefixes,
             # that should be removed when collecting back table information
-            if name.startswith(database_prefix):
+            if database_prefix and name.startswith(database_prefix):
                 # removing database prefix for tables
                 name = name[len(database_prefix):]
-            else:
+            elif database_prefix is not None:
                 # We don't need tables not from current db
                 continue
             result.append(TableInfo(name, table_types.get(table_type)))

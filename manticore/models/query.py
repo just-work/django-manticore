@@ -1,7 +1,10 @@
+import operator
+from functools import reduce
+
 from django.db.models import query
 from django.db.models.sql import AND
 
-from manticore.models.sql.sphinxql import Match, T
+from manticore.models.sql.sphinxql import *
 
 
 class SearchQuerySet(query.QuerySet):
@@ -13,12 +16,20 @@ class SearchQuerySet(query.QuerySet):
         return qs
 
     @staticmethod
-    def _build_match_expression(term):
-        if isinstance(term, str):
-            return T(term)
-        return term
+    def _build_match_expression(*args):
+        """ Transforms *args, **kwargs to SphinxQL DSL."""
+        terms = []
+        for term in args:
+            if isinstance(term, str):
+                terms.append(T(term))
+            elif isinstance(term, (SphinxQLCombinable, SphinxQLNode)):
+                terms.append(term)
+            else:
+                raise ValueError(term)
+        return reduce(operator.and_, terms)
 
     def _match_expression(self) -> Match:
+        """ Gets or adds Match expression to where clause."""
         where = self.query.where
         if where.connector != AND:
             raise ValueError(f"MATCH can't be used with {where.connector}")
