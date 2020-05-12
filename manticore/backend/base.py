@@ -63,6 +63,7 @@ class ManticoreFeatures(base.DatabaseFeatures):
     uses_savepoints = False
     # enables returning primary keys from LAST_INSERT_ID() in bulk_create
     can_return_rows_from_bulk_insert = True
+    can_return_columns_from_insert = True
 
 
 class ManticoreIntrospection(base.DatabaseIntrospection):
@@ -132,6 +133,8 @@ class ManticoreOperations(base.DatabaseOperations):
         Marks table name with is_table_name flag for correct addition of
         database name prefix
         """
+        if isinstance(name, TableName):
+            return name
         return TableName(name)
 
     def adapt_datetimefield_value(self, value):
@@ -164,6 +167,22 @@ class ManticoreOperations(base.DatabaseOperations):
             return sql
         else:
             return []
+
+    @staticmethod
+    def fetch_returned_insert_rows(cursor):
+        cursor.execute("SELECT LAST_INSERT_ID()")
+        row = cursor.fetchone()
+        result = []
+        for value in map(int, row[0].split(',')):
+            result.append([value])
+        return result
+
+    def return_insert_columns(self, fields):
+        return '', []
+
+    def fetch_returned_insert_columns(self, cursor):
+        # return tuple to avoid extending inserted_rows list in _batched_insert
+        return cursor.lastrowid,
 
 
 class ManticoreCreation(base.DatabaseCreation):

@@ -6,62 +6,48 @@ from manticore.models.sql.compiler import SphinxQLCompiler
 
 
 class SQLCompiler(SphinxQLCompiler):
+    """ interface for DatabaseOperations.compiler_module """
     pass
 
 
 class SQLInsertCompiler(compiler.SQLInsertCompiler, SphinxQLCompiler):
 
     def execute_sql(self, returning_fields=None):
+        """
+        Marks table name for database name prefix addition.
+        """
         # noinspection PyProtectedMember
         opts = self.query.model._meta
         # marking db_table attribute to add database name prefix in quote_name
         opts.db_table = self.connection.ops.mark_table_name(opts.db_table)
-        if returning_fields:
-            # when performing bulk_create, it is useful to fill primary keys
-            # for new inserted objects.
-            if (len(returning_fields) != 1 or
-                    not returning_fields[0].primary_key):
-                raise NotImplementedError("returning_fields not supported")
-            super().execute_sql(returning_fields=False)
-            with self.connection.cursor() as c:
-                c.execute("SELECT LAST_INSERT_ID()")
-                row = c.fetchone()
-            result = []
-            pks = list(map(int, row[0].split(',')))
-            if len(self.query.objs) > 1:
-                # bulk_create needs something like [[1], [2], [3]],
-                # but only if there are more than one objects inserted
-                for pk in pks:
-                    result.append([pk])
-            else:
-                # simple save(force_insert) needs not-a-list, see
-                # QuerySet._batched_insert
-                result = (pks[0],)
-            return result
         return super().execute_sql(returning_fields)
 
     def pre_save_val(self, field, obj):
+        # FIXME: debug point
         return super().pre_save_val(field, obj)
 
 
 class SQLUpdateCompiler(compiler.SQLUpdateCompiler, SphinxQLCompiler):
 
     def as_sql(self):
+        """
+        Performs REPLACE query instead of UPDATE in case of
+        rt_field and attr_json updates.
+        """
         if self.__is_index_field_update():
             pk = self.__get_primary_key_value()
-            if pk is not None:
-                # rt fields cant be updated with UPDATE syntax, and if we are
-                # performing SearchIndex.save(), we can perform REPLACE
-                return self.__as_replace(pk)
-            else:
+            if pk is None:
                 raise NotImplementedError(
-                    "Updating indexed fields is supported only by pk value"
-                )
+                    "Updating indexed fields is supported only by pk value")
+            # rt fields and attr_json can't be updated with UPDATE syntax;
+            # if we are performing SearchIndex.save(), we can perform REPLACE
+            return self.__as_replace(pk)
+
         return super().as_sql()
 
     def __get_primary_key_value(self):
         """
-        Checks whether where clause is pk=value
+        :returns: pk value from WHERE clause which looks like "WHERE id = %s"
         """
         if not self.query.where:
             return
@@ -75,6 +61,10 @@ class SQLUpdateCompiler(compiler.SQLUpdateCompiler, SphinxQLCompiler):
         return node.rhs
 
     def __as_replace(self, pk):
+        """
+        Executes REPLACE query to update rt_field and attr_json fields by
+        given pk value.
+        """
         query = sql.InsertQuery(self.query.model)
         # noinspection PyProtectedMember
         opts = self.query.model._meta
@@ -93,11 +83,16 @@ class SQLUpdateCompiler(compiler.SQLUpdateCompiler, SphinxQLCompiler):
         insert_compiler = query.get_compiler(self.using, self.connection)
         sqls = insert_compiler.as_sql()
         insert_sql, params = sqls[0]
+
         # INSERT -> REPLACE
+        if not insert_sql.startswith('INSERT '):
+            raise ValueError(insert_sql)
         insert_sql = 'REPLACE' + insert_sql[6:]
+
         return insert_sql, params
 
     def __is_index_field_update(self):
+        """ Checks whether update query contains indexed fields updates."""
         for field, _, _ in self.query.values:
             if isinstance(field, (RTField, JSONField)):
                 return True
@@ -106,5 +101,9 @@ class SQLUpdateCompiler(compiler.SQLUpdateCompiler, SphinxQLCompiler):
 
 class SQLDeleteCompiler(compiler.SQLDeleteCompiler, SphinxQLCompiler):
     def _compile_in(self, node: lookups.In):
-        # DELETE supports WHERE id IN (values_list)
+        """
+        Formats "a IN values" expression instead of widely used in manticore
+        "IN(a, values)" function
+        """
+        # DELETE supports WHERE id IN (values_list) instead of IN-function
         return node.as_sql(self, self.connection)
