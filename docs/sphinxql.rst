@@ -1,0 +1,1 @@
+.. TODO: describe usage of sphinxql DSL

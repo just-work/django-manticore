@@ -3,7 +3,8 @@ from django.db.backends.mysql import compiler
 from django.db.models import expressions, lookups
 from django.db.models.query import EmptyResultSet
 from django.db.models.sql import constants
-from django.db.models.sql.where import WhereNode, ExtraWhere, AND
+from django.db.models.sql.datastructures import BaseTable
+from django.db.models.sql.where import ExtraWhere, AND
 
 from manticore.models.lookups import InFunction
 from manticore.models.sql.sphinxql import Match
@@ -19,6 +20,9 @@ class SphinxQLCompiler(compiler.SQLCompiler):
         if isinstance(node, lookups.In):
             # col IN (values list) not supported, transforming to function call
             return self._compile_in(node)
+        if isinstance(node, BaseTable):
+            # prefix table name with database name
+            return self.__compile_table(node)
         return super().compile(node)
 
     def execute_sql(self, result_type=constants.MULTI, chunked_fetch=False,
@@ -39,6 +43,11 @@ class SphinxQLCompiler(compiler.SQLCompiler):
     def __compile_col(self, node: expressions.Col):
         qn = self.quote_name_unless_alias
         return qn(node.target.column), ()
+
+    def __compile_table(self, node: BaseTable):
+        qn = self.connection.ops.quote_name
+        table_name = self.connection.ops.mark_table_name(node.table_name)
+        return qn(table_name), ()
 
     def __maybe_move_where(self):
         where = self.query.where.clone()

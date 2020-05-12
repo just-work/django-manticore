@@ -10,11 +10,13 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
         raise NotImplementedError()
 
     def create_model(self, model):
+        # noinspection PyProtectedMember
+        opts = model._meta
+        # mark table name to set database name prefix for created tables
+        opts.db_table = self.connection.ops.mark_table_name(opts.db_table)
         # manticore search does not allow creating tables without rt fields,
         # adding a stub field for it
         has_rt_index = False
-        # noinspection PyProtectedMember
-        opts = model._meta
         for f in opts.local_fields:
             if isinstance(f, RTField):
                 has_rt_index = True

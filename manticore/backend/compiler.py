@@ -12,6 +12,10 @@ class SQLCompiler(SphinxQLCompiler):
 class SQLInsertCompiler(compiler.SQLInsertCompiler, SphinxQLCompiler):
 
     def execute_sql(self, returning_fields=None):
+        # noinspection PyProtectedMember
+        opts = self.query.model._meta
+        # marking db_table attribute to add database name prefix in quote_name
+        opts.db_table = self.connection.ops.mark_table_name(opts.db_table)
         if returning_fields:
             # when performing bulk_create, it is useful to fill primary keys
             # for new inserted objects.

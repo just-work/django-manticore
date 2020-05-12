@@ -1,0 +1,1 @@
+.. TODO: Describe mapping django model fields to manticore attributes
