@@ -10,6 +10,10 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
         raise NotImplementedError()
 
     def create_model(self, model):
+        """
+        Marks table name for database prefix addition, adds stub rt_field for
+        django internal tables,
+        """
         # noinspection PyProtectedMember
         opts = model._meta
         # mark table name to set database name prefix for created tables
@@ -23,12 +27,12 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
                 break
         if not has_rt_index:
             stub = RTField(stored=False)
-            stub.contribute_to_class(model, 'stub')
-
-            super().create_model(model)
-
-            # removing stub to prevent fetching non-stored field
-            opts.local_fields.remove(stub)
+            try:
+                stub.contribute_to_class(model, 'stub')
+                super().create_model(model)
+            finally:
+                # removing stub to prevent fetching non-stored field
+                opts.local_fields.remove(stub)
         else:
             super().create_model(model)
 
@@ -37,8 +41,12 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
         return True
 
     def add_field(self, model, field):
-        base_add_field = super(schema.DatabaseSchemaEditor, self).add_field
-        base_add_field(model, field)
+        """
+        Adds new column to table and performs update of default value
+        """
+        # calling BaseDatabaseSchemaEditor.add_field to skip mysql
+        # implementation
+        super(schema.DatabaseSchemaEditor, self).add_field(model, field)
 
         if (self.skip_default(field) and
                 field.default not in (None, NOT_PROVIDED)):
@@ -53,11 +61,15 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
 
     def column_sql(self, model, field, include_default=False):
         if field.primary_key:
-            # FIXME: созданные вручную первичные ключи нужно все-таки создавать
+            # FIXME: create manual primary keys
             return None, ''
-        # Без этого создается описание колонки с NULL/NOT NULL в конце
-        field.null = True
-        return super().column_sql(model, field, include_default=False)
+        # without null flag column sql is created with NOT NULL annotation,
+        # which is not supported by manticore
+        null, field.null = field.null, True
+        try:
+            return super().column_sql(model, field, include_default=False)
+        finally:
+            field.null = null
 
     def alter_unique_together(self, model, old_unique_together,
                               new_unique_together):
