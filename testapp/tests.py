@@ -2,9 +2,11 @@ from datetime import timedelta
 
 from django.db import connections
 from django.test import TransactionTestCase
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from django_testing_utils.mixins import BaseTestCase
 
+from manticore.models.sql.sphinxql import T
 from testapp import models
 
 
@@ -237,3 +239,53 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
         objs = [self.model(**self.defaults)]
         self.model.objects.bulk_create(objs)
         self.assertIsNotNone(objs[0].pk)
+
+    def assert_match(self, qs, sphinxql):
+        with CaptureQueriesContext(connections['manticore']) as ctx:
+            result = list(qs)
+        match_expression = f"MATCH('{sphinxql}')"
+        self.assertIn(match_expression, ctx.captured_queries[-1]['sql'])
+        return result
+
+    def test_match_text(self):
+        """ Full-text search by plain text is supported."""
+        qs = self.model.objects.match("hello")
+        objs = self.assert_match(qs, "(hello)")
+        self.assertEqual(objs, [self.obj])
+
+    def test_match_text_and_other_text(self):
+        """ two subsequent match calls combined with &."""
+        qs = self.model.objects.match("hello")
+        qs = qs.match("sphinx")
+        self.assert_match(qs, "(hello)&(sphinx)")
+
+    def test_match_multiple_terms(self):
+        """ passing space-separated text is not split to words."""
+        qs = self.model.objects.match("hello sphinx")
+        self.assert_match(qs, "(hello sphinx)")
+
+    def test_single_escape_characters(self):
+        """
+        https://docs.manticoresearch.com/latest/html/searching/escaping_in_queries.html
+        """
+        chars = r'''!"$'()-/<@\^|~'''
+        for c in chars:
+            qs = self.model.objects.match(f'{c} hello')
+            if c in ['"', "'", '\\']:
+                # escaped by mysql also
+                c = fr'\{c}'
+            objs = self.assert_match(qs, fr"(\\{c} hello)")
+            self.assertListEqual(objs, [self.obj])
+
+    def test_match_one_or_another(self):
+        """ Operator OR (|) works with terms."""
+        qs = self.model.objects.match(T("hello") | T("world"))
+        objs = self.assert_match(qs, '(hello)|(world)')
+        self.assertListEqual(objs, [self.obj])
+
+    def test_match_with_filter(self):
+        """ Filtering over attributes works with full-text search."""
+        qs = self.model.objects.match("hello").filter(
+            attr_uint=self.obj.attr_uint)
+        objs = list(qs)
+        self.assertListEqual(objs, [self.obj])

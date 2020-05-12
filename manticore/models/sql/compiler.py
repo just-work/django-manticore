@@ -6,6 +6,8 @@ from django.db.models.sql import constants
 from django.db.models.sql.where import WhereNode, ExtraWhere, AND
 
 from manticore.models.lookups import InFunction
+from manticore.models.sql.sphinxql import Match
+from manticore.models.sql.where import ManticoreWhereNode
 
 
 class SphinxQLCompiler(compiler.SQLCompiler):
@@ -39,13 +41,23 @@ class SphinxQLCompiler(compiler.SQLCompiler):
         return qn(node.target.column), ()
 
     def __maybe_move_where(self):
-        if not self.query.where:
+        where = self.query.where.clone()
+        match = None
+        for node in where.children:
+            if isinstance(node, Match):
+                match = node
+                break
+        if match:
+            where.children.remove(match)
+        if not where:
             return
-        sql, params = self.compile(self.query.where)
+        sql, params = self.compile(where)
         extra_select = expressions.RawSQL(sql, params, models.BooleanField())
         extra_where = ExtraWhere(['__where__ = %s'], (True,))
-        where = WhereNode()
+        where = ManticoreWhereNode()
         where.add(extra_where, AND)
+        if match:
+            where.add(match, AND)
 
         # All filtering conditions are now evaluated as __where__ in select
         # clause, so we need to check only that it is true
