@@ -9,6 +9,9 @@ from manticore.backend.schema import DatabaseSchemaEditor
 
 
 class TableName(str):
+    """
+    Table name marker for proper database name prefix addition.
+    """
     # table name marker used in quote_name for adding database name prefix
     # to table names
     is_table_name = True
@@ -17,11 +20,12 @@ class TableName(str):
 class DatabaseWrapper(base.DatabaseWrapper):
     data_types = {
         **base.DatabaseWrapper.data_types,
-        'AutoField': 'integer',
-        'CharField': 'string',
-        'TextField': 'string',
+        # overriding model fields mapping to manticore attributes
+        'CharField': 'string',  # attr_string instead of varchar
+        'TextField': 'string',  # attr_string instead of text, which is rt_field
+        # closest equivalent for datetime field in manticore is attr_timestamp
         'DateTimeField': 'timestamp',
-        'FloatField': 'float',
+        'FloatField': 'float',  # attr_float instead of double
     }
 
     SchemaEditorClass = DatabaseSchemaEditor
@@ -46,7 +50,10 @@ class ManticoreFeatures(base.DatabaseFeatures):
     is_sql_auto_is_null_enabled = False
     # column definition NULL is not supported
     implied_column_null = True
-    # FIXME
+    # FIXME add fake transaction support
+    # manticore supports over-isolated transaction, which means that updates
+    # are not visible in same transaction. Transaction support is disabled
+    # mostly for running tests.
     supports_transactions = False
     # django tries to check foreign key constraints in tests
     can_rollback_ddl = False
@@ -54,7 +61,7 @@ class ManticoreFeatures(base.DatabaseFeatures):
     has_select_for_update = False
     # savepoints not supported
     uses_savepoints = False
-    # used to return primary keys from LAST_INSERT_ID() function to bulk_create
+    # enables returning primary keys from LAST_INSERT_ID() in bulk_create
     can_return_rows_from_bulk_insert = True
 
 
@@ -66,13 +73,15 @@ class ManticoreIntrospection(base.DatabaseIntrospection):
         cursor.execute("SHOW TABLES")
         result = []
         database_prefix = f'{self.connection.settings_dict["NAME"]}__'
-        # django migrations uses tables, matching 'rt' indexes
+        # manticore annotates real-time indices with "rt" type
         table_types = {
             'rt': 't'
         }
         for row in cursor.fetchall():
             name = row[0]
             table_type = row[1]
+            # multi-database support is implemented with table prefixes,
+            # that should be removed when collecting back table information
             if name.startswith(database_prefix):
                 # removing database prefix for tables
                 name = name[len(database_prefix):]
@@ -80,7 +89,7 @@ class ManticoreIntrospection(base.DatabaseIntrospection):
                 # We don't need tables not from current db
                 continue
             result.append(TableInfo(name, table_types.get(table_type)))
-        # FIXME: вернуть здесь и дисковые индексы тоже
+        # FIXME: support on-disk indices as views
         return result
 
     def get_storage_engine(self, cursor, table_name):
@@ -89,6 +98,7 @@ class ManticoreIntrospection(base.DatabaseIntrospection):
         return 'RT'
 
     def table_names(self, cursor=None, include_views=False):
+        # FIXME: debug hook
         return super().table_names(cursor, include_views)
 
 
@@ -107,9 +117,13 @@ class ManticoreOperations(base.DatabaseOperations):
 
     def quote_name(self, name):
         """ Table names are prefixed with database name."""
-        if getattr(name, 'is_table_name', False):
-            if self.db_name:
-                name = f'{self.db_name}__{name}'
+        # Multi-database support is implemented with database name prefixes
+        # for tables, but this method is used also for quoting other identifiers
+        # like database name or column names. To distinguish table names
+        # `mark_table_name` method is used to add table name mark for `name`
+        # argument.
+        if getattr(name, 'is_table_name', False) and self.db_name:
+            name = f'{self.db_name}__{name}'
         return super().quote_name(name)
 
     @staticmethod
@@ -121,22 +135,27 @@ class ManticoreOperations(base.DatabaseOperations):
         return TableName(name)
 
     def adapt_datetimefield_value(self, value):
+        """ Converts datetime value to unix timestamp."""
         if isinstance(value, datetime):
             # closest manticore datetime equivalent is attr_timestamp
             return int(timezone.utc.normalize(value).timestamp())
         return super().adapt_datetimefield_value(value)
 
     def convert_datetimefield_value(self, value, expression, connection):
+        """ Convert unix timestamp values to datetime."""
         if isinstance(value, int):
             # closest manticore datetime equivalent is attr_timestamp, which
             # stores datetime as unix utc timestamp
             value = datetime.utcfromtimestamp(value)
-        return super().convert_datetimefield_value(value, expression, connection)
+        return super().convert_datetimefield_value(
+            value, expression, connection)
 
     def sql_flush(self, style, tables, sequences, allow_cascade=False):
+        """ Implement flushing manticore database as truncating all tables."""
         if tables:
             sql = []
             for table in tables:
+                table = self.mark_table_name(table)
                 sql.append('%s %s;' % (
                     style.SQL_KEYWORD('TRUNCATE RTINDEX'),
                     style.SQL_FIELD(self.quote_name(table)),
@@ -148,32 +167,19 @@ class ManticoreOperations(base.DatabaseOperations):
 
 
 class ManticoreCreation(base.DatabaseCreation):
-    #
-    # def create_test_db(self, *args, **kwargs):
-    #     # NOOP, test using regular manticore database.
-    #     if self.connection.settings_dict.get('TEST_NAME'):
-    #         # initialize connection database name
-    #         test_name = self.connection.settings_dict['TEST_NAME']
-    #         self.connection.close()
-    #         self.connection.settings_dict['NAME'] = test_name
-    #         self.connection.cursor()
-    #         return test_name
-    #     return self.connection.settings_dict['NAME']
-    #
-    # def destroy_test_db(self, *args, **kwargs):
-    #     # NOOP, we created nothing, nothing to destroy.
-    #     return
 
     def _execute_create_test_db(self, cursor, parameters, keepdb=False):
-        # manticore does not support multiple databases
+        # manticore does not support multiple databases, skipping
+        # CREATE DATABASE command
         pass
 
     def _destroy_test_db(self, test_database_name, verbosity):
-        # manticore does not support destroying test databases, instead we
-        # drop every table with corresponding prefix
-        introspection: ManticoreIntrospection = self.connection.introspection
+        # manticore does not support multiple databases, skipping
+        # DROP DATABASE command.
         # noinspection PyProtectedMember
         with self.connection._nodb_connection.cursor() as c:
+            # manticore does not support destroying databases, instead we
+            # drop every table with corresponding prefix
             c.execute("SHOW TABLES")
             for row in c.fetchall():
                 table_name = row[0]
