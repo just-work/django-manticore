@@ -8,8 +8,13 @@ from manticore.models import lookups
 
 
 class RTField(models.TextField):
+    """ Full-text search field (rt_field)."""
 
     def __init__(self, *, stored=True, **kwargs):
+        """
+        :param stored: store field contents in index and return in if necessary
+        :param kwargs: common django text field kwargs
+        """
         # null is not supported by manticore, '' is reasonable default
         kwargs['null'] = False
         kwargs['default'] = ''
@@ -27,6 +32,7 @@ class RTField(models.TextField):
 
 
 class JSONField(models.Field):
+    """ JSON field (attr_json)."""
     def db_type(self, connection):
         return 'json'
 
@@ -35,8 +41,7 @@ class JSONField(models.Field):
 
     def get_prep_value(self, value):
         if value is None:
-            # NULL can't be saved in attr_json
-            raise ValueError(value)
+            return ''
         return json.dumps(value)
 
     # noinspection PyMethodMayBeStatic,PyUnusedLocal
@@ -47,6 +52,7 @@ class JSONField(models.Field):
 
 
 class MultiField(models.PositiveIntegerField):
+    """ Multi-field (attr_multi). Contains a list of uint32."""
     def db_type(self, connection):
         return 'multi'
 
@@ -67,6 +73,8 @@ MultiField.register_lookup(lookups.MultiExact)
 
 
 class BigMultiField(models.BigIntegerField):
+    """ Multi-field for big integer (attr_multi64). Contains a list of int64."""
+
     def db_type(self, connection):
         return 'multi64'
 

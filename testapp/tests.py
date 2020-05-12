@@ -1,8 +1,7 @@
 from datetime import timedelta
 
 from django.db import connections
-from django.test import TransactionTestCase
-from django.test.utils import CaptureQueriesContext
+from django.test import TransactionTestCase, utils
 from django.utils import timezone
 from django_testing_utils.mixins import BaseTestCase
 
@@ -135,8 +134,8 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
     def test_json_field_null(self):
         """ NULL in attr_json is not supported."""
         self.obj.attr_json = None
-        with self.assertRaises(NotImplementedError):
-            self.obj.save(update_fields=('attr_json',))
+        self.obj.save()
+        self.assert_object_fields(self.obj, attr_json=None)
 
     def test_update_attributes(self):
         """ Attributes could be updated via model save with update_fields."""
@@ -241,7 +240,7 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
         self.assertIsNotNone(objs[0].pk)
 
     def assert_match(self, qs, sphinxql):
-        with CaptureQueriesContext(connections['manticore']) as ctx:
+        with utils.CaptureQueriesContext(connections['manticore']) as ctx:
             result = list(qs)
         match_expression = f"MATCH('{sphinxql}')"
         self.assertIn(match_expression, ctx.captured_queries[-1]['sql'])

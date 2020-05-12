@@ -7,10 +7,11 @@ __all__ = ['SearchIndex']
 
 
 class SearchIndexBase(base.ModelBase):
-    pass
+    """ Search index metaclass used in ManticoreRouter."""
 
 
 class SearchIndex(base.Model, metaclass=SearchIndexBase):
+    """ Search index base model."""
     class Meta:
         abstract = True
 
