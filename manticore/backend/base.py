@@ -200,8 +200,13 @@ class ManticoreCreation(base.DatabaseCreation):
         with self.connection._nodb_connection.cursor() as c:
             # manticore does not support destroying databases, instead we
             # drop every table with corresponding prefix
-            c.execute("SHOW TABLES")
-            for row in c.fetchall():
-                table_name = row[0]
-                if table_name.startswith(f'{test_database_name}__'):
-                    c.execute(f"DROP TABLE {table_name}")
+            for table in self.connection.introspection.get_table_list(c):
+                c.execute(f"DROP TABLE {test_database_name}__{table.name}")
+
+    def _clone_db(self, source_database_name, target_database_name):
+        # copying tables with source prefix to target prefix
+        # noinspection PyProtectedMember
+        with self.connection._nodb_connection.cursor() as c:
+            for table in self.connection.introspection.get_table_list(c):
+                c.execute(f"CREATE TABLE {target_database_name}__{table.name} "
+                          f"LIKE {source_database_name}__{table.name}")

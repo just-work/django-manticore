@@ -1,5 +1,7 @@
 from django.db.backends.mysql import schema
 from django.db.models.fields import NOT_PROVIDED
+from django.db.models.options import Options
+from django.utils.datastructures import ImmutableList
 
 from manticore.models import fields
 
@@ -15,7 +17,7 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
         django internal tables,
         """
         # noinspection PyProtectedMember
-        opts = model._meta
+        opts: Options = model._meta
         # mark table name to set database name prefix for created tables
         opts.db_table = self.connection.ops.mark_table_name(opts.db_table)
         # manticore search does not allow creating tables without rt fields,
@@ -33,6 +35,7 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
             finally:
                 # removing stub to prevent fetching non-stored field
                 opts.local_fields.remove(stub)
+                opts.__dict__.pop('fields', None)
         else:
             super().create_model(model)
 
