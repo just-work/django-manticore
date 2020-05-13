@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 from django.db import connections
-from django.test import TransactionTestCase, utils
+from django.test import utils
 from django.utils import timezone
 from django_testing_utils.mixins import BaseTestCase
 
@@ -10,7 +10,7 @@ from manticore.routers import ManticoreRouter, is_search_index
 from testapp import models
 
 
-class SearchIndexTestCaseBase(BaseTestCase, TransactionTestCase):
+class SearchIndexTestCaseBase(BaseTestCase):
     model = models.TestModel
     databases = {'default', 'manticore'}
 
@@ -291,10 +291,11 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
         self.assertListEqual(objs, [self.obj])
 
 
-class ManticoreRouterTestCase(TransactionTestCase):
+class ManticoreRouterTestCase(BaseTestCase):
     databases = {'default', 'manticore'}
 
     def setUp(self):
+        super().setUp()
         self.test_model = models.TestModel.objects.create()
         self.django_model = models.DjangoModel.objects.create(title='title')
         self.router = ManticoreRouter()
@@ -338,3 +339,20 @@ class ManticoreRouterTestCase(TransactionTestCase):
             'default', 'testapp', 'DjangoModel'))
         self.assertFalse(self.router.allow_migrate(
             'manticore', 'testapp', 'DjangoModel'))
+
+
+class NonTransactionalTestCase(BaseTestCase):
+    databases = {'default', 'manticore'}
+
+    def setUp(self):
+        super().setUp()
+        self.obj = models.TestModel.objects.create(attr_uint=123)
+
+    def test_1(self):
+        obj = models.TestModel.objects.create(attr_uint=321)
+        self.assert_object_fields(obj, attr_uint=321)
+
+    def test_2(self):
+        # object created in test_1 is removed in tearDown
+        self.assertEqual(
+            models.TestModel.objects.filter(attr_uint=321).count(), 0)

@@ -85,7 +85,8 @@ class BigMultiField(models.BigIntegerField):
 
     # noinspection PyMethodMayBeStatic,PyUnusedLocal
     def from_db_value(self, value, expression, connection):
-        value = value or ''
+        if not value:
+            return []
         return list(map(int, value.split(',')))
 
 
