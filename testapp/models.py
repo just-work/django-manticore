@@ -23,3 +23,7 @@ class FieldMixin(models.Model):
 
 class TestModel(FieldMixin, SearchIndex):
     pass
+
+
+class DjangoModel(models.Model):
+    title = models.CharField(max_length=32)

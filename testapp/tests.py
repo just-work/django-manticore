@@ -6,6 +6,7 @@ from django.utils import timezone
 from django_testing_utils.mixins import BaseTestCase
 
 from manticore.models.sql.sphinxql import T
+from manticore.routers import ManticoreRouter, is_search_index
 from testapp import models
 
 
@@ -288,3 +289,52 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
             attr_uint=self.obj.attr_uint)
         objs = list(qs)
         self.assertListEqual(objs, [self.obj])
+
+
+class ManticoreRouterTestCase(TransactionTestCase):
+    databases = {'default', 'manticore'}
+
+    def setUp(self):
+        self.test_model = models.TestModel.objects.create()
+        self.django_model = models.DjangoModel.objects.create(title='title')
+        self.router = ManticoreRouter()
+
+    def test_is_search_index(self):
+        for obj in self.test_model, models.TestModel:
+            self.assertTrue(is_search_index(obj))
+
+        for obj in self.django_model, models.DjangoModel:
+            self.assertFalse(is_search_index(obj))
+
+    def test_db_for_read(self):
+        self.assertEqual(self.router.db_for_read(self.test_model), 'manticore')
+        self.assertIsNone(self.router.db_for_read(self.django_model))
+
+    def test_db_for_write(self):
+        self.assertEqual(self.router.db_for_write(self.test_model), 'manticore')
+        self.assertIsNone(self.router.db_for_write(self.django_model))
+
+    def test_allow_relation(self):
+        self.assertIsNone(self.router.allow_relation(self.django_model,
+                                                     self.django_model))
+        cases = [
+            (self.test_model, self.test_model),
+            (self.test_model, self.django_model),
+            (self.django_model, self.test_model),
+        ]
+        for obj1, obj2 in cases:
+            self.assertFalse(self.router.allow_relation(obj1, obj2))
+
+    def test_allow_migrate(self):
+        self.assertIsNone(self.router.allow_migrate('default', 'testapp'))
+        self.assertIsNone(self.router.allow_migrate('manticore', 'testapp'))
+
+        self.assertFalse(self.router.allow_migrate(
+            'default', 'testapp', 'TestModel'))
+        self.assertTrue(self.router.allow_migrate(
+            'manticore', 'testapp', 'TestModel'))
+
+        self.assertIsNone(self.router.allow_migrate(
+            'default', 'testapp', 'DjangoModel'))
+        self.assertFalse(self.router.allow_migrate(
+            'manticore', 'testapp', 'DjangoModel'))

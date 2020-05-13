@@ -27,13 +27,21 @@ class ManticoreRouter:
 
     @staticmethod
     def allow_relation(obj1, obj2, **hints):
-        # Joins not allowed at all
-        return False
+        # Joins between search index and anything else are not allowed
+        if is_search_index(obj1) or is_search_index(obj2):
+            return False
+        # No decisions are made for unrelated models
+        return None
 
     def allow_migrate(self, db, app_label, model_name=None, **hints):
-        if db != self.db_name:
-            return False
         if not model_name:
-            return False
+            # we can't tell anything
+            return None
         model = apps.get_model(app_label, model_name)
-        return is_search_index(model)
+        if is_search_index(model):
+            # indices are migrated only for manticore db
+            return db == self.db_name
+        if db == self.db_name:
+            # in manticore only indices are migrated
+            return False
+        return None
