@@ -10,25 +10,24 @@ from manticore.models import lookups
 class RTField(models.TextField):
     """ Full-text search field (rt_field)."""
 
-    def __init__(self, *, stored=True, **kwargs):
-        """
-        :param stored: store field contents in index and return in if necessary
-        :param kwargs: common django text field kwargs
-        """
+    def __init__(self, **kwargs):
         # null is not supported by manticore, '' is reasonable default
         kwargs['null'] = False
         kwargs['default'] = ''
-        self.stored = stored
         super().__init__(**kwargs)
 
     def db_type(self, connection):
-        sql = 'text indexed'
-        if self.stored:
-            sql += ' stored'
-        return sql
+        return 'text indexed stored'
 
     def get_internal_type(self):
         return "RTField"
+
+
+class IndexedField(RTField):
+    """ Non-stored search field which may still be used for querying."""
+
+    def db_type(self, connection):
+        return 'text indexed'
 
 
 class JSONField(models.Field):

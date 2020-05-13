@@ -1,7 +1,7 @@
 from django.db.backends.mysql import schema
 from django.db.models.fields import NOT_PROVIDED
 
-from manticore.models import RTField
+from manticore.models import fields
 
 
 class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
@@ -22,13 +22,13 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
         # adding a stub field for it
         has_rt_index = False
         for f in opts.local_fields:
-            if isinstance(f, RTField):
+            if isinstance(f, fields.RTField):
                 has_rt_index = True
                 break
         if not has_rt_index:
-            stub = RTField(stored=False)
+            stub = fields.IndexedField(db_column='__stub__')
             try:
-                stub.contribute_to_class(model, 'stub')
+                stub.contribute_to_class(model, '_stub')
                 super().create_model(model)
             finally:
                 # removing stub to prevent fetching non-stored field
