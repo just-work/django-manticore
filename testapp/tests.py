@@ -5,8 +5,8 @@ from django.test import utils
 from django.utils import timezone
 from django_testing_utils.mixins import BaseTestCase
 
-from manticore.sphinxql.expressions import F, T
 from manticore.routers import ManticoreRouter, is_search_index
+from manticore.sphinxql.expressions import F, T, P
 from testapp import models
 
 
@@ -240,10 +240,16 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
         self.model.objects.bulk_create(objs)
         self.assertIsNotNone(objs[0].pk)
 
-    def assert_match(self, qs, sphinxql):
+    def assert_match(self, qs, sphinxql, escape=True):
+        if escape:
+            escape = connections['manticore'].connection.literal
+            sphinxql = escape(sphinxql).decode('utf-8')
+            match_expression = f"MATCH({sphinxql})"
+        else:
+            match_expression = f"MATCH('{sphinxql}')"
+
         with utils.CaptureQueriesContext(connections['manticore']) as ctx:
             result = list(qs)
-        match_expression = f"MATCH('{sphinxql}')"
         self.assertIn(match_expression, ctx.captured_queries[-1]['sql'])
         return result
 
@@ -257,7 +263,7 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
         """ two subsequent match calls combined with &."""
         qs = self.model.objects.match("hello")
         qs = qs.match("sphinx")
-        self.assert_match(qs, "(hello)&(sphinx)")
+        self.assert_match(qs, "(hello) & (sphinx)")
 
     def test_match_multiple_terms(self):
         """ passing space-separated text is not split to words."""
@@ -274,13 +280,13 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
             if c in ['"', "'", '\\']:
                 # escaped by mysql also
                 c = fr'\{c}'
-            objs = self.assert_match(qs, fr"(\\{c} hello)")
+            objs = self.assert_match(qs, fr"(\\{c} hello)", escape=False)
             self.assertListEqual(objs, [self.obj])
 
     def test_match_one_or_another(self):
         """ Operator OR (|) works with terms."""
         qs = self.model.objects.match(T("hello") | T("world"))
-        objs = self.assert_match(qs, '(hello)|(world)')
+        objs = self.assert_match(qs, '(hello) | (world)')
         self.assertListEqual(objs, [self.obj])
 
     def test_match_with_filter(self):
@@ -331,6 +337,10 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
 
         self.assertRaises(ValueError, F, 'sphinx_field', 'text',
                           other_field='two')
+
+    def test_phrase_term(self):
+        qs = self.model.objects.match(F(sphinx_field=P("phrase search")))
+        self.assert_match(qs, '(@sphinx_field ("phrase search"))')
 
 
 class ManticoreRouterTestCase(BaseTestCase):

@@ -27,8 +27,7 @@ class SearchQuerySet(query.QuerySet):
                 terms.append(term)
             else:
                 raise TypeError(term)
-        for field, expression in kwargs.items():
-            terms.append(F(field, expression=expression))
+        terms.extend(map(lambda pair: F(*pair), kwargs.items()))
         return reduce(operator.and_, terms)
 
     def _match_expression(self) -> Match:
