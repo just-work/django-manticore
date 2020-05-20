@@ -5,7 +5,7 @@ from django.test import utils
 from django.utils import timezone
 from django_testing_utils.mixins import BaseTestCase
 
-from manticore.models.sql.sphinxql import T
+from manticore.sphinxql.expressions import T
 from manticore.routers import ManticoreRouter, is_search_index
 from testapp import models
 

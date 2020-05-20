@@ -4,7 +4,8 @@ from functools import reduce
 from django.db.models import query
 from django.db.models.sql import AND
 
-from manticore.models.sql.sphinxql import *
+from manticore.sphinxql.expressions import T, Match
+from manticore.sphinxql.base import SphinxQLCombinable, SphinxQLNode
 
 
 class SearchQuerySet(query.QuerySet):

@@ -1,26 +1,20 @@
 from django.db.models.expressions import Combinable
 
-ESCAPE = str.maketrans({k: rf"\{k}" for k in r'''!"$'()-/<@^|~'''})
-
-
-def escape(s: str):
-    s = s.replace('\\', '\\\\')
-    s = s.translate(ESCAPE)
-    return s
-
 
 class SphinxQLCombinable(Combinable):
 
     def __and__(self, other):
         if isinstance(other, SphinxQLCombinable):
-            return SphinxQLNode(self) & SphinxQLNode(other)
+            return SphinxQLNode(self, other)
+        return NotImplemented
 
     def __rand__(self, other):
         return NotImplemented
 
     def __or__(self, other):
         if isinstance(other, SphinxQLCombinable):
-            return SphinxQLNode(self) | SphinxQLNode(other)
+            return SphinxQLNode(self, other, connector='|')
+        return NotImplemented
 
     def __ror__(self, other):
         return NotImplemented
@@ -58,29 +52,17 @@ class SphinxQLNode:
     def __or__(self, other):
         return self._combine(other, '|')
 
-
-class T(SphinxQLCombinable):
-    """ SphinxQL text term."""
-
-    def __init__(self, term: str):
-        self.term = term
-
-    def as_sphinxql(self):
-        return '(%s)', [self.term]
-
-
-class Match(SphinxQLNode):
-    """ Root match node that renders MATCH(...) """
-    # duck typing for Django ORM
-    contains_aggregate = False
-
-    def as_sql(self, compiler, connection):
-        sphinxql, params = self.as_sphinxql()
-        expression = sphinxql % tuple(map(escape, params))
-        return f"MATCH(%s)", [expression]
-
     def __rand__(self, other):
         return NotImplemented
 
     def __ror__(self, other):
         return NotImplemented
+
+
+ESCAPE = str.maketrans({k: rf"\{k}" for k in r'''!"$'()-/<@^|~'''})
+
+
+def escape(s: str):
+    s = s.replace('\\', '\\\\')
+    s = s.translate(ESCAPE)
+    return s

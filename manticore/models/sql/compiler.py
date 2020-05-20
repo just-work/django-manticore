@@ -7,7 +7,7 @@ from django.db.models.sql.datastructures import BaseTable
 from django.db.models.sql.where import ExtraWhere, AND
 
 from manticore.models.lookups import InFunction
-from manticore.models.sql.sphinxql import Match
+from manticore.sphinxql.expressions import Match
 from manticore.models.sql.where import ManticoreWhereNode
 
 
