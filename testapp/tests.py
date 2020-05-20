@@ -319,6 +319,19 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
         self.assert_match(
             qs, '(@!(sphinx_field,other_field) (text) & !(exclude))')
 
+    def test_field_search_validation(self):
+        """ F object must validate invalid initialization."""
+        self.assertRaises(TypeError, F, sphinx_field=F('other_field', 'value'))
+
+        self.assertRaises(ValueError, F, sphinx_field='one', other_field='two')
+
+        self.assertRaises(ValueError, F)
+
+        self.assertRaises(ValueError, F, 'sphinx_field')
+
+        self.assertRaises(ValueError, F, 'sphinx_field', 'text',
+                          other_field='two')
+
 
 class ManticoreRouterTestCase(BaseTestCase):
     databases = {'default', 'manticore'}

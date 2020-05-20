@@ -1,3 +1,5 @@
+from typing import Tuple, Iterable, Any
+
 from django.db.models.expressions import Combinable
 
 
@@ -59,6 +61,13 @@ class SphinxQLCombinable(Combinable):
 
     def __ror__(self, other):
         return NotImplemented
+
+    def as_sphinxql(self) -> Tuple[str, Iterable[Any]]:
+        raise NotImplementedError
+
+    def __repr__(self):
+        sql, params = self.as_sphinxql()
+        return f'{self.__class__.__name__}: {sql % tuple(params)}'
 
 
 ESCAPE = str.maketrans({k: rf"\{k}" for k in r'''!"$'()-/<@^|~'''})

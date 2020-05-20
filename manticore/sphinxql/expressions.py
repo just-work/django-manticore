@@ -3,6 +3,7 @@ from manticore.sphinxql.base import SphinxQLCombinable, SphinxQLNode, escape
 __all__ = [
     'F',
     'Match',
+    'P',
     'T',
 ]
 
@@ -16,14 +17,39 @@ class T(SphinxQLCombinable):
     node_class = TextNode
 
     def __init__(self, term: str, negate=False):
+        """
+        Initializes search term node:
+
+        >>> T("any of word matches")
+        T: (any of word matches)
+        >>> T("negated", negate=True)
+        T: !(negated)
+
+        """
+        if not isinstance(term, str):
+            raise TypeError("term is not string")
         self.term = term
         self.negate = negate
 
     def __invert__(self):
-        return T(self.term, negate=not self.negate)
+        return self.__class__(self.term, negate=not self.negate)
 
     def as_sphinxql(self):
         sql = '!(%s)' if self.negate else '(%s)'
+        return sql, [self.term]
+
+
+class P(T):
+    """
+    SphinxQL quoted text node (phrase).
+    >>> P("phrase search")
+    P: ("phrase search")
+    >>> ~P("exclude phrase")
+    P: !("exclude phrase")
+    """
+
+    def as_sphinxql(self):
+        sql = '!("%s")' if self.negate else '("%s")'
         return sql, [self.term]
 
 
@@ -43,11 +69,11 @@ class F(SphinxQLCombinable):
         :param kwargs: shortcut for single field name -> search expression value
 
         >>> F(first_field="text")
-        F(@first_field (text))
+        F: (@first_field (text))
         >>> F('first_field', 'other_field', T("term"))
-        F(@(first_field,other_field) (term))
+        F: (@(first_field,other_field) (term))
         >>> F(other_field=(T("text") & ~T("other")), exclude=True)
-        F(@!other_field (text) & (other))
+        F: (@!other_field (text) & (other))
         """
         if args and kwargs:
             raise ValueError("Don't pass args and kwargs simultaneously")
@@ -86,10 +112,6 @@ class F(SphinxQLCombinable):
 
         expr, params = self.expression.as_sphinxql()
         return f'({prefix}{fields} {expr})', params
-
-    def __repr__(self):
-        sql, params = self.as_sphinxql()
-        return f'F{sql % tuple(params)}'
 
 
 class Match(SphinxQLNode):
