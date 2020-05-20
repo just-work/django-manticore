@@ -5,7 +5,7 @@ from django.test import utils
 from django.utils import timezone
 from django_testing_utils.mixins import BaseTestCase
 
-from manticore.sphinxql.expressions import T
+from manticore.sphinxql.expressions import F, T
 from manticore.routers import ManticoreRouter, is_search_index
 from testapp import models
 
@@ -289,6 +289,35 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
             attr_uint=self.obj.attr_uint)
         objs = list(qs)
         self.assertListEqual(objs, [self.obj])
+
+    def test_match_field(self):
+        """ Match over index fields is supported with keyword arguments."""
+        qs = self.model.objects.match(sphinx_field="hello")
+        objs = self.assert_match(qs, '(@sphinx_field (hello))')
+        self.assertListEqual(objs, [self.obj])
+
+        qs = self.model.objects.match(sphinx_field='sphinx',
+                                      other_field='other')
+        self.assert_match(
+            qs, '(@sphinx_field (sphinx)) & (@other_field (other))')
+
+    def test_field_search_expression(self):
+        """ Match with field search expression."""
+
+        qs = self.model.objects.match(F(sphinx_field='hello'))
+        self.assert_match(qs, '(@sphinx_field (hello))')
+
+        qs = self.model.objects.match(F('sphinx_field', 'other_field', 'hello'))
+        self.assert_match(qs, '(@(sphinx_field,other_field) (hello))')
+
+        qs = self.model.objects.match(F('other_field', T('wat'), exclude=True))
+        self.assert_match(qs, '(@!other_field (wat))')
+
+        qs = self.model.objects.match(F('sphinx_field', 'other_field',
+                                        T('text') & ~T('exclude'),
+                                        exclude=True))
+        self.assert_match(
+            qs, '(@!(sphinx_field,other_field) (text) & !(exclude))')
 
 
 class ManticoreRouterTestCase(BaseTestCase):

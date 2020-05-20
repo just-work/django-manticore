@@ -1,25 +1,6 @@
 from django.db.models.expressions import Combinable
 
 
-class SphinxQLCombinable(Combinable):
-
-    def __and__(self, other):
-        if isinstance(other, SphinxQLCombinable):
-            return SphinxQLNode(self, other)
-        return NotImplemented
-
-    def __rand__(self, other):
-        return NotImplemented
-
-    def __or__(self, other):
-        if isinstance(other, SphinxQLCombinable):
-            return SphinxQLNode(self, other, connector='|')
-        return NotImplemented
-
-    def __ror__(self, other):
-        return NotImplemented
-
-
 class SphinxQLNode:
     connector = '&'
 
@@ -37,14 +18,15 @@ class SphinxQLNode:
             s, p = expr.as_sphinxql()
             sphinxql.append(s)
             params.extend(p)
-        return self.connector.join(sphinxql), params
+        connector = f' {self.connector} '
+        return connector.join(sphinxql), params
 
     def _combine(self, other, connector):
-        if not (isinstance(other, SphinxQLNode) and
+        if not (isinstance(other, self.__class__) and
                 self.connector == other.connector):
-            return SphinxQLNode(*self.expressions, other, connector=connector)
-        return SphinxQLNode(*self.expressions, *other.expressions,
-                            connector=connector)
+            return self.__class__(*self.expressions, other, connector=connector)
+        return self.__class__(*self.expressions, *other.expressions,
+                              connector=connector)
 
     def __and__(self, other):
         return self._combine(other, '&')
@@ -53,6 +35,26 @@ class SphinxQLNode:
         return self._combine(other, '|')
 
     def __rand__(self, other):
+        return NotImplemented
+
+    def __ror__(self, other):
+        return NotImplemented
+
+
+class SphinxQLCombinable(Combinable):
+    node_class = SphinxQLNode
+
+    def __and__(self, other):
+        if isinstance(other, self.__class__):
+            return self.node_class(self, other)
+        return NotImplemented
+
+    def __rand__(self, other):
+        return NotImplemented
+
+    def __or__(self, other):
+        if isinstance(other, self.__class__):
+            return self.node_class(self, other, connector='|')
         return NotImplemented
 
     def __ror__(self, other):

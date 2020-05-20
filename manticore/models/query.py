@@ -4,7 +4,7 @@ from functools import reduce
 from django.db.models import query
 from django.db.models.sql import AND
 
-from manticore.sphinxql.expressions import T, Match
+from manticore.sphinxql.expressions import T, Match, F
 from manticore.sphinxql.base import SphinxQLCombinable, SphinxQLNode
 
 
@@ -17,7 +17,7 @@ class SearchQuerySet(query.QuerySet):
         return qs
 
     @staticmethod
-    def _build_match_expression(*args):
+    def _build_match_expression(*args, **kwargs):
         """ Transforms *args, **kwargs to SphinxQL DSL."""
         terms = []
         for term in args:
@@ -26,7 +26,9 @@ class SearchQuerySet(query.QuerySet):
             elif isinstance(term, (SphinxQLCombinable, SphinxQLNode)):
                 terms.append(term)
             else:
-                raise ValueError(term)
+                raise TypeError(term)
+        for field, expression in kwargs.items():
+            terms.append(F(field, expression=expression))
         return reduce(operator.and_, terms)
 
     def _match_expression(self) -> Match:
