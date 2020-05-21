@@ -1,3 +1,5 @@
+from typing import Optional, Union
+
 from manticore.sphinxql.base import SphinxQLCombinable, SphinxQLNode, escape
 
 __all__ = [
@@ -16,7 +18,7 @@ class T(SphinxQLCombinable):
     """ SphinxQL text term."""
     node_class = TextNode
 
-    def __init__(self, term: str, negate=False):
+    def __init__(self, term: str, negate=False, exact=False):
         """
         Initializes search term node:
 
@@ -25,17 +27,21 @@ class T(SphinxQLCombinable):
         >>> T("negated", negate=True)
         T: !(negated)
 
+
         """
         if not isinstance(term, str):
             raise TypeError("term is not string")
         self.term = term
         self.negate = negate
+        self.exact = exact
 
     def __invert__(self):
-        return self.__class__(self.term, negate=not self.negate)
+        return self.__class__(self.term, negate=not self.negate,
+                              exact=self.exact)
 
     def as_sphinxql(self):
-        sql = '!(%s)' if self.negate else '(%s)'
+        e = '=' if self.exact else ''
+        sql = f'!({e}%s)' if self.negate else f'({e}%s)'
         return sql, [self.term]
 
 
@@ -46,10 +52,45 @@ class P(T):
     P: ("phrase search")
     >>> ~P("exclude phrase")
     P: !("exclude phrase")
+    >>> P("2 of m words match", quorum=2)
+    P: ("2 of m words match"/2)
+    >>> P("~30% of words match", quorum=0.3)
+    P: ("~30% of words match"/0.3)
+    >>> P("distance between words", proximity=4)
+    P: ("distance between words"~4)
+    >>> ~P("exact word forms", exact=True)
+    P: !(="exact word forms")
     """
 
+    def __init__(self, term: str, negate=False, exact=False,
+                 proximity: Optional[int] = None,
+                 quorum: Union[None, int, float] = None):
+        super().__init__(term, negate, exact)
+        if proximity is not None:
+            if not isinstance(proximity, int):
+                raise TypeError("proximity must be int")
+        self.proximity = proximity
+        if quorum is not None:
+            if not isinstance(quorum, (int, float)):
+                raise TypeError("quorum must be int or float")
+        self.quorum = quorum
+
+    def __invert__(self):
+        return self.__class__(self.term, negate=not self.negate,
+                              exact=self.exact, proximity=self.proximity,
+                              quorum=self.quorum)
+
     def as_sphinxql(self):
-        sql = '!("%s")' if self.negate else '("%s")'
+        if isinstance(self.quorum, int):
+            m = f'/{self.quorum}'
+        elif isinstance(self.quorum, float):
+            m = f'/{self.quorum:0.7f}'.rstrip('0')
+        elif self.proximity:
+            m = f'~{self.proximity}'
+        else:
+            m = ''
+        p = '=' if self.exact else ''
+        sql = f'!({p}"%s"{m})' if self.negate else f'({p}"%s"{m})'
         return sql, [self.term]
 
 
@@ -61,6 +102,7 @@ class F(SphinxQLCombinable):
     - @field text -
 
     """
+
     def __init__(self, *args, exclude=False, **kwargs):
         """
         Constructs field search expression
