@@ -1,7 +1,6 @@
 from django.db.backends.mysql import schema
 from django.db.models.fields import NOT_PROVIDED
 from django.db.models.options import Options
-from django.utils.datastructures import ImmutableList
 
 from manticore.models import fields
 

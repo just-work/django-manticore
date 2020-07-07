@@ -99,10 +99,6 @@ class ManticoreIntrospection(base.DatabaseIntrospection):
         # noinspection PyProtectedMember
         return 'RT'
 
-    def table_names(self, cursor=None, include_views=False):
-        # FIXME: debug hook
-        return super().table_names(cursor, include_views)
-
 
 class ManticoreValidation(base.DatabaseValidation):
     def _check_sql_mode(self, **kwargs):

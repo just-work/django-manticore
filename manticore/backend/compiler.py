@@ -22,10 +22,6 @@ class SQLInsertCompiler(compiler.SQLInsertCompiler, SphinxQLCompiler):
         opts.db_table = self.connection.ops.mark_table_name(opts.db_table)
         return super().execute_sql(returning_fields)
 
-    def pre_save_val(self, field, obj):
-        # FIXME: debug point
-        return super().pre_save_val(field, obj)
-
 
 class SQLUpdateCompiler(compiler.SQLUpdateCompiler, SphinxQLCompiler):
 
