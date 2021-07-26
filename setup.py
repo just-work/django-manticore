@@ -69,7 +69,7 @@ setup(
     author_email='zimbler@gmail.com',
     description='Manticoresearch database backend for Django',
     install_requires=[
-        'Django>=3.1',
+        'Django>=3.1,<3.3',
     ],
     classifiers=[
         'Development Status :: 1 - Planning',

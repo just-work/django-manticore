@@ -191,7 +191,7 @@ class ManticoreCreation(base.DatabaseCreation):
         # manticore does not support multiple databases, skipping
         # DROP DATABASE command.
         # noinspection PyProtectedMember
-        with self.connection._nodb_connection.cursor() as c:
+        with self.connection._nodb_cursor() as c:
             # manticore does not support destroying databases, instead we
             # drop every table with corresponding prefix
             for table in self.connection.introspection.get_table_list(c):
@@ -200,7 +200,7 @@ class ManticoreCreation(base.DatabaseCreation):
     def _clone_db(self, source_database_name, target_database_name):
         # copying tables with source prefix to target prefix
         # noinspection PyProtectedMember
-        with self.connection._nodb_connection.cursor() as c:
+        with self.connection._nodb_cursor() as c:
             for table in self.connection.introspection.get_table_list(c):
                 c.execute(f"CREATE TABLE {target_database_name}__{table.name} "
                           f"LIKE {source_database_name}__{table.name}")
