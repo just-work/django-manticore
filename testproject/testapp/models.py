@@ -7,6 +7,8 @@ from manticore.models import fields, SearchIndex
 class FieldMixin(models.Model):
     class Meta:
         abstract = True
+        min_prefix_len = 2
+
     sphinx_field = fields.RTField()
     other_field = fields.RTField()
 

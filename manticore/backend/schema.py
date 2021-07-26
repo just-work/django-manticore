@@ -2,7 +2,7 @@ from django.db.backends.mysql import schema
 from django.db.models.fields import NOT_PROVIDED
 from django.db.models.options import Options
 
-from manticore.models import fields
+from manticore.models import fields, base
 
 
 class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
@@ -77,3 +77,22 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
                               new_unique_together):
         # unique indexes not supported
         pass
+
+    def table_sql(self, model):
+        sql, params = super().table_sql(model)
+        # noinspection PyProtectedMember
+        opts = model._meta
+
+        index_sql, index_params = [], []
+        for k in base.INDEX_OPTIONS:
+            try:
+                v = getattr(opts, k)
+            except AttributeError:
+                continue
+            index_sql.append(f'{k} = %s')
+            index_params.append(str(v))
+        if index_sql:
+            sql += ' '.join(index_sql)
+            params += index_params
+
+        return sql, params

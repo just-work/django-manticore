@@ -1,9 +1,18 @@
-from django.db.models import base
+from django.db.models import base, options
 
 from manticore.models.manager import SearchManager
 
 
 __all__ = ['SearchIndex']
+
+
+INDEX_OPTIONS = (
+    'min_prefix_len',
+    'regexp_filter',
+    'blend_chars'
+)
+
+options.DEFAULT_NAMES += INDEX_OPTIONS
 
 
 class SearchIndexBase(base.ModelBase):
