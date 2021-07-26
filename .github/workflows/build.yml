@@ -29,5 +29,6 @@ jobs:
         python --version
     - name: Run Tests
       run: |
+        docker run --name manticore -v /tmp/:/var/lib/manticore -p 127.0.0.1:9306:9306 -d manticoresearch/manticore
         python ./manage.py test
         python ./manage.py test --parallel
