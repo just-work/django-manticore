@@ -1,3 +1,4 @@
+from copy import deepcopy
 from datetime import timedelta
 
 from django.db import connections
@@ -233,6 +234,21 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
         for obj in objs:
             self.assertIsNotNone(obj.pk)
             self.assert_object_fields(obj, **self.defaults)
+
+    def test_bulk_create_ignore_conflicts(self):
+        """ bulk_create ignore_conflicts forces upsert."""
+        objs = [self.model(**self.defaults) for _ in range(10)]
+        self.model.objects.bulk_create(objs)
+        for obj in objs:
+            assert obj.pk is not None
+            obj.attr_bool = not obj.attr_bool
+        self.model.objects.bulk_create(objs, ignore_conflicts=True)
+
+        expected = deepcopy(self.defaults)
+        expected['attr_bool'] = not expected['attr_bool']
+        for obj in objs:
+            self.assertIsNotNone(obj.pk)
+            self.assert_object_fields(obj, **expected)
 
     def test_bulk_create_single_object(self):
         """ bulk_create works correctly for single object."""

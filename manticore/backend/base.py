@@ -134,6 +134,9 @@ class ManticoreOperations(base.DatabaseOperations):
             return name
         return TableName(name)
 
+    def insert_statement(self, ignore_conflicts=False):
+        return 'REPLACE INTO' if ignore_conflicts else 'INSERT INTO'
+
     def adapt_datetimefield_value(self, value):
         """ Converts datetime value to unix timestamp."""
         if isinstance(value, datetime):
