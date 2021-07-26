@@ -62,7 +62,7 @@ setup(
     version=get_version() or 'dev',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    packages=find_packages(where='.', include=['manticore.*']),
+    packages=find_packages(where='.', include=['manticore']),
     url='https://github.com/just-work/django-manticore',
     license='MIT',
     author='Sergey Tikhonov',
