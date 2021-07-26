@@ -103,3 +103,9 @@ class SQLDeleteCompiler(compiler.SQLDeleteCompiler, SphinxQLCompiler):
         """
         # DELETE supports WHERE id IN (values_list) instead of IN-function
         return node.as_sql(self, self.connection)
+
+    def _as_sql(self, query):
+        # mark table name to be quoted with test database prefix, see
+        # ManticoreOperations.quote_name
+        query.base_table = self.connection.ops.mark_table_name(query.base_table)
+        return super()._as_sql(query)

@@ -2,13 +2,12 @@ from django.core.exceptions import EmptyResultSet
 from django.db import models
 from django.db.backends.mysql import compiler
 from django.db.models import expressions, lookups
-from django.db.models.sql import constants
 from django.db.models.sql.datastructures import BaseTable
 from django.db.models.sql.where import ExtraWhere, AND
 
 from manticore.models.lookups import InFunction
-from manticore.sphinxql.expressions import Match
 from manticore.models.sql.where import ManticoreWhereNode
+from manticore.sphinxql.expressions import Match
 
 
 class SphinxQLCompiler(compiler.SQLCompiler):
@@ -24,10 +23,6 @@ class SphinxQLCompiler(compiler.SQLCompiler):
             # prefix table name with database name
             return self.__compile_table(node)
         return super().compile(node)
-
-    def execute_sql(self, result_type=constants.MULTI, chunked_fetch=False,
-                    chunk_size=constants.GET_ITERATOR_CHUNK_SIZE):
-        return super().execute_sql(result_type, chunked_fetch, chunk_size)
 
     def as_sql(self, with_limits=True, with_col_aliases=False):
         self.__maybe_set_limits(with_limits)
