@@ -7,7 +7,7 @@ from django_testing_utils.mixins import BaseTestCase
 
 from manticore.routers import ManticoreRouter, is_search_index
 from manticore.sphinxql.expressions import F, T, P
-from testapp import models
+from testproject.testapp import models
 
 
 class SearchIndexTestCaseBase(BaseTestCase):
