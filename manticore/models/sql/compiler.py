@@ -1,7 +1,7 @@
+from django.core.exceptions import EmptyResultSet
 from django.db import models
 from django.db.backends.mysql import compiler
 from django.db.models import expressions, lookups
-from django.db.models.query import EmptyResultSet
 from django.db.models.sql import constants
 from django.db.models.sql.datastructures import BaseTable
 from django.db.models.sql.where import ExtraWhere, AND

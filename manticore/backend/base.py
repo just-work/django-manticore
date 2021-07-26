@@ -150,7 +150,7 @@ class ManticoreOperations(base.DatabaseOperations):
         return super().convert_datetimefield_value(
             value, expression, connection)
 
-    def sql_flush(self, style, tables, sequences, allow_cascade=False):
+    def sql_flush(self, style, tables, *, reset_sequences=False, allow_cascade=False):
         """ Implement flushing manticore database as truncating all tables."""
         if tables:
             sql = []
@@ -160,13 +160,11 @@ class ManticoreOperations(base.DatabaseOperations):
                     style.SQL_KEYWORD('TRUNCATE RTINDEX'),
                     style.SQL_FIELD(self.quote_name(table)),
                 ))
-            sql.extend(self.sequence_reset_by_name_sql(style, sequences))
             return sql
         else:
             return []
 
-    @staticmethod
-    def fetch_returned_insert_rows(cursor):
+    def fetch_returned_insert_rows(self, cursor):
         cursor.execute("SELECT LAST_INSERT_ID()")
         row = cursor.fetchone()
         result = []
@@ -177,7 +175,7 @@ class ManticoreOperations(base.DatabaseOperations):
     def return_insert_columns(self, fields):
         return '', []
 
-    def fetch_returned_insert_columns(self, cursor):
+    def fetch_returned_insert_columns(self, cursor, returning_params):
         # return tuple to avoid extending inserted_rows list in _batched_insert
         return cursor.lastrowid,
 
