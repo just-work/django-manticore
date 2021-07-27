@@ -10,8 +10,8 @@ class SphinxQLNode:
         self.expressions = list(expressions)
         self.connector = connector
 
-    def add(self, expression):
-        self.expressions.append(expression)
+    def add(self, *expressions):
+        self.expressions.extend(expressions)
 
     def as_sphinxql(self):
         sphinxql = []
@@ -21,14 +21,18 @@ class SphinxQLNode:
             sphinxql.append(s)
             params.extend(p)
         connector = f' {self.connector} '
+        if len(self.expressions) > 1:
+            return f'({connector.join(sphinxql)})', params
         return connector.join(sphinxql), params
 
     def _combine(self, other, connector):
-        if not (isinstance(other, self.__class__) and
-                self.connector == other.connector):
-            return self.__class__(*self.expressions, other, connector=connector)
-        return self.__class__(*self.expressions, *other.expressions,
-                              connector=connector)
+        if self.connector == connector:
+            if isinstance(other, SphinxQLNode):
+                self.add(*other.expressions)
+            else:
+                self.add(other)
+            return self
+        return self.__class__(self, other, connector=connector)
 
     def __and__(self, other):
         return self._combine(other, '&')
@@ -47,7 +51,7 @@ class SphinxQLCombinable(Combinable):
     node_class = SphinxQLNode
 
     def __and__(self, other):
-        if isinstance(other, self.__class__):
+        if isinstance(other, SphinxQLCombinable):
             return self.node_class(self, other)
         return NotImplemented
 
@@ -55,7 +59,7 @@ class SphinxQLCombinable(Combinable):
         return NotImplemented
 
     def __or__(self, other):
-        if isinstance(other, self.__class__):
+        if isinstance(other, SphinxQLCombinable):
             return self.node_class(self, other, connector='|')
         return NotImplemented
 

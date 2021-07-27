@@ -279,7 +279,7 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
         """ two subsequent match calls combined with &."""
         qs = self.model.objects.match("hello")
         qs = qs.match("sphinx")
-        self.assert_match(qs, "(hello) & (sphinx)")
+        self.assert_match(qs, "((hello) & (sphinx))")
 
     def test_match_multiple_terms(self):
         """ passing space-separated text is not split to words."""
@@ -302,7 +302,7 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
     def test_match_one_or_another(self):
         """ Operator OR (|) works with terms."""
         qs = self.model.objects.match(T("hello") | T("world"))
-        objs = self.assert_match(qs, '(hello) | (world)')
+        objs = self.assert_match(qs, '((hello) | (world))')
         self.assertListEqual(objs, [self.obj])
 
     def test_match_prefix(self):
@@ -340,7 +340,7 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
         qs = self.model.objects.match(sphinx_field='sphinx',
                                       other_field='other')
         self.assert_match(
-            qs, '(@sphinx_field (sphinx)) & (@other_field (other))')
+            qs, '((@sphinx_field (sphinx)) & (@other_field (other)))')
 
     def test_field_search_expression(self):
         """ Match with field search expression."""
@@ -358,7 +358,7 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
                                         T('text') & ~T('exclude'),
                                         exclude=True))
         self.assert_match(
-            qs, '(@!(sphinx_field,other_field) (text) & !(exclude))')
+            qs, '(@!(sphinx_field,other_field) ((text) & !(exclude)))')
 
     def test_field_search_validation(self):
         """ F object must validate invalid initialization."""
@@ -376,6 +376,10 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
     def test_phrase_term(self):
         qs = self.model.objects.match(F(sphinx_field=P("phrase search")))
         self.assert_match(qs, '(@sphinx_field ("phrase search"))')
+
+    def test_logical_expressions(self):
+        qs = self.model.objects.match((T('second') | T('third')) & T('first'))
+        self.assert_match(qs, '(((second) | (third)) & (first))')
 
 
 class ManticoreRouterTestCase(BaseTestCase):
