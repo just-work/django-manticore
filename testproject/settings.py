@@ -85,6 +85,7 @@ DATABASES = {
         'ENGINE': 'manticore.backend',
         'HOST': '127.0.0.1',
         'PORT': 9306,
+        'CLUSTER': 'cluster',
     },
 }
 

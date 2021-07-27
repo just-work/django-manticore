@@ -1,3 +1,4 @@
+from django.db import ProgrammingError
 from django.db.backends.mysql import schema
 from django.db.models.fields import NOT_PROVIDED
 from django.db.models.options import Options
@@ -19,6 +20,7 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
         opts: Options = model._meta
         # mark table name to set database name prefix for created tables
         opts.db_table = self.connection.ops.mark_table_name(opts.db_table)
+        opts.db_table.skip_cluster = True
         # manticore search does not allow creating tables without rt fields,
         # adding a stub field for it
         has_rt_index = False
@@ -37,6 +39,17 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
                 opts.__dict__.pop('fields', None)
         else:
             super().create_model(model)
+        cluster = self.connection.settings_dict.get('CLUSTER', '')
+        if cluster:
+            with self.connection._nodb_cursor() as c:
+                cluster = self.connection.ops.quote_name(cluster)
+                db_table = self.connection.ops.quote_name(opts.db_table)
+                try:
+                    c.execute(f'CREATE CLUSTER {cluster}')
+                except ProgrammingError:
+                    pass
+                c.execute(f'ALTER CLUSTER {cluster} ADD {db_table}')
+        opts.db_table.skip_cluster = False
 
     def skip_default(self, field):
         # manticore does not support defaults at all

@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from django.db import ProgrammingError
 from django.db.backends.base.introspection import TableInfo
 from django.db.backends.mysql import base
 from django.utils import timezone
@@ -124,9 +125,12 @@ class ManticoreOperations(base.DatabaseOperations):
         # like database name or column names. To distinguish table names
         # `mark_table_name` method is used to add table name mark for `name`
         # argument.
-        if getattr(name, 'is_table_name', False) and self.db_name:
+        is_table_name = getattr(name, 'is_table_name', False)
+        skip_cluster = getattr(name, 'skip_cluster', False)
+        print(self.cluster_name)
+        if is_table_name and self.db_name:
             name = f'{self.db_name}__{name}'
-        if getattr(name, 'is_table_name', False) and self.cluster_name:
+        if is_table_name and self.cluster_name and not skip_cluster:
             cluster = super().quote_name(self.cluster_name)
             name = super().quote_name(name)
             return f'{cluster}:{name}'
@@ -203,6 +207,13 @@ class ManticoreCreation(base.DatabaseCreation):
         # DROP DATABASE command.
         # noinspection PyProtectedMember
         with self.connection._nodb_cursor() as c:
+            cluster = self.connection.settings_dict.get('CLUSTER', '')
+            if cluster:
+                cluster = self.connection.ops.quote_name(cluster)
+                try:
+                    c.execute(f"DELETE CLUSTER {cluster}")
+                except ProgrammingError:
+                    pass
             # manticore does not support destroying databases, instead we
             # drop every table with corresponding prefix
             for table in self.connection.introspection.get_table_list(c):
@@ -212,6 +223,15 @@ class ManticoreCreation(base.DatabaseCreation):
         # copying tables with source prefix to target prefix
         # noinspection PyProtectedMember
         with self.connection._nodb_cursor() as c:
+            cluster = self.connection.settings_dict.get('CLUSTER', '')
+            if cluster:
+                cluster = self.connection.ops.quote_name(cluster)
+                try:
+                    c.execute(f"CREATE CLUSTER {cluster}")
+                except ProgrammingError:
+                    pass
             for table in self.connection.introspection.get_table_list(c):
                 c.execute(f"CREATE TABLE {target_database_name}__{table.name} "
                           f"LIKE {source_database_name}__{table.name}")
+                if cluster:
+                    c.execute(f"ALTER CLUSTER {cluster} ADD {target_database_name}__{table.name}")
