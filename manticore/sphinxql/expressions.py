@@ -6,6 +6,8 @@ __all__ = [
     'F',
     'Match',
     'P',
+    'Prefix',
+    'Start',
     'T',
 ]
 
@@ -42,6 +44,25 @@ class T(SphinxQLCombinable):
     def as_sphinxql(self):
         e = '=' if self.exact else ''
         sql = f'!({e}%s)' if self.negate else f'({e}%s)'
+        return sql, [self.term]
+
+
+class Prefix(SphinxQLCombinable):
+    """
+    Initializes search prefix node:
+
+    >>> Prefix("matches")
+    Prefix: (matches*)
+    """
+    node_class = TextNode
+
+    def __init__(self, term: str):
+        if not isinstance(term, str):
+            raise TypeError("term is not string")
+        self.term = term
+
+    def as_sphinxql(self):
+        sql = f'(%s*)'
         return sql, [self.term]
 
 
@@ -154,6 +175,28 @@ class F(SphinxQLCombinable):
 
         expr, params = self.expression.as_sphinxql()
         return f'({prefix}{fields} {expr})', params
+
+
+class Start(SphinxQLCombinable):
+    """
+    Start of field search operator
+
+    - ^text
+    """
+    def __init__(self, expression):
+        """
+        Only terms (single words) supported.
+        :param expression: T or string.
+        """
+        if isinstance(expression, str):
+            self.expression = T(expression)
+        elif isinstance(expression, T):
+            self.expression = expression
+        else:
+            raise TypeError("unsupported expression for Start")
+
+    def as_sphinxql(self):
+        return '^%s', [self.expression.term]
 
 
 class Match(SphinxQLNode):

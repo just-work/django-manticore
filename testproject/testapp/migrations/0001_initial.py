@@ -31,6 +31,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'abstract': False,
+                'min_prefix_len': 2,
             },
         ),
     ]

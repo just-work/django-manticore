@@ -7,7 +7,7 @@ from django.utils import timezone
 from django_testing_utils.mixins import BaseTestCase
 
 from manticore.routers import ManticoreRouter, is_search_index
-from manticore.sphinxql.expressions import F, T, P
+from manticore.sphinxql.expressions import F, T, P, Prefix, Start
 from testproject.testapp import models
 
 
@@ -304,6 +304,21 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
         qs = self.model.objects.match(T("hello") | T("world"))
         objs = self.assert_match(qs, '(hello) | (world)')
         self.assertListEqual(objs, [self.obj])
+
+    def test_match_prefix(self):
+        """ Prefix search works."""
+        qs = self.model.objects.match(Prefix("hell"))
+        objs = self.assert_match(qs, '(hell*)')
+        self.assertListEqual(objs, [self.obj])
+
+    def test_match_start(self):
+        """ Start of field search works."""
+        qs = self.model.objects.match(Start("hello sphinx"))
+        objs = self.assert_match(qs, '^hello sphinx')
+        self.assertListEqual(objs, [self.obj])
+
+        qs = self.model.objects.match(Start("sphinx"))
+        self.assertFalse(list(qs))
 
     def test_match_with_filter(self):
         """ Filtering over attributes works with full-text search."""
