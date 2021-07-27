@@ -113,6 +113,10 @@ class ManticoreOperations(base.DatabaseOperations):
     def db_name(self):
         return self.connection.settings_dict.get('NAME', '')
 
+    @property
+    def cluster_name(self):
+        return self.connection.settings_dict.get('CLUSTER', '')
+
     def quote_name(self, name):
         """ Table names are prefixed with database name."""
         # Multi-database support is implemented with database name prefixes
@@ -122,6 +126,8 @@ class ManticoreOperations(base.DatabaseOperations):
         # argument.
         if getattr(name, 'is_table_name', False) and self.db_name:
             name = f'{self.db_name}__{name}'
+            if self.cluster_name:
+                name = f'{self.cluster_name}:name'
         return super().quote_name(name)
 
     @staticmethod
