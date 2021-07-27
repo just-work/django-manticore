@@ -6,8 +6,6 @@ __all__ = [
     'F',
     'Match',
     'P',
-    'Prefix',
-    'Start',
     'T',
 ]
 
@@ -17,10 +15,19 @@ class TextNode(SphinxQLNode):
 
 
 class T(SphinxQLCombinable):
-    """ SphinxQL text term."""
+    """
+    SphinxQL text term.
+
+    Supports:
+
+    - prefix search (text*)
+    - start of text search (^text)
+    - negate
+
+    """
     node_class = TextNode
 
-    def __init__(self, term: str, negate=False, exact=False):
+    def __init__(self, term: str, negate=False, exact=False, prefix=False, start=False):
         """
         Initializes search term node:
 
@@ -36,33 +43,23 @@ class T(SphinxQLCombinable):
         self.term = term
         self.negate = negate
         self.exact = exact
+        self.prefix = prefix
+        self.start = start
 
     def __invert__(self):
         return self.__class__(self.term, negate=not self.negate,
                               exact=self.exact)
 
     def as_sphinxql(self):
-        e = '=' if self.exact else ''
-        sql = f'!({e}%s)' if self.negate else f'({e}%s)'
-        return sql, [self.term]
-
-
-class Prefix(SphinxQLCombinable):
-    """
-    Initializes search prefix node:
-
-    >>> Prefix("matches")
-    Prefix: (matches*)
-    """
-    node_class = TextNode
-
-    def __init__(self, term: str):
-        if not isinstance(term, str):
-            raise TypeError("term is not string")
-        self.term = term
-
-    def as_sphinxql(self):
-        sql = f'(%s*)'
+        p = ''
+        if self.exact:
+            p = '='
+        elif self.start:
+            p = '^'
+        s = ''
+        if self.prefix:
+            s = '*'
+        sql = f'!({p}%s{s})' if self.negate else f'({p}%s{s})'
         return sql, [self.term]
 
 
@@ -175,28 +172,6 @@ class F(SphinxQLCombinable):
 
         expr, params = self.expression.as_sphinxql()
         return f'({prefix}{fields} {expr})', params
-
-
-class Start(SphinxQLCombinable):
-    """
-    Start of field search operator
-
-    - ^text
-    """
-    def __init__(self, expression):
-        """
-        Only terms (single words) supported.
-        :param expression: T or string.
-        """
-        if isinstance(expression, str):
-            self.expression = T(expression)
-        elif isinstance(expression, T):
-            self.expression = expression
-        else:
-            raise TypeError("unsupported expression for Start")
-
-    def as_sphinxql(self):
-        return '^%s', [self.expression.term]
 
 
 class Match(SphinxQLNode):
