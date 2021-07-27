@@ -126,8 +126,10 @@ class ManticoreOperations(base.DatabaseOperations):
         # argument.
         if getattr(name, 'is_table_name', False) and self.db_name:
             name = f'{self.db_name}__{name}'
-            if self.cluster_name:
-                name = f'{self.cluster_name}:name'
+        if getattr(name, 'is_table_name', False) and self.cluster_name:
+            cluster = super().quote_name(self.cluster_name)
+            name = super().quote_name(name)
+            return f'{cluster}:{name}'
         return super().quote_name(name)
 
     @staticmethod
