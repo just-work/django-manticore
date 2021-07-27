@@ -127,7 +127,6 @@ class ManticoreOperations(base.DatabaseOperations):
         # argument.
         is_table_name = getattr(name, 'is_table_name', False)
         skip_cluster = getattr(name, 'skip_cluster', False)
-        print(self.cluster_name)
         if is_table_name and self.db_name:
             name = f'{self.db_name}__{name}'
         if is_table_name and self.cluster_name and not skip_cluster:
