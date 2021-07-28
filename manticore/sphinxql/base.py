@@ -75,6 +75,7 @@ class SphinxQLCombinable:
     It does not provide __init__ signature to allow any signature for child classes.
     """
     node_class = SphinxQLNode
+    connector = node_class.AND  # For compatibility with SphinxQLNode
 
     def __and__(self, other):
         return self._connect(other, self.node_class.AND, False)

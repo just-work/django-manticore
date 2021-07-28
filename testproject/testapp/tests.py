@@ -390,6 +390,9 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
         qs = self.model.objects.match(T('0') & (T('a') | T('b')) & (T('c') | T('d')))
         self.assert_match(qs, '(((0) & ((a) | (b))) & ((c) | (d)))')
 
+        qs = self.model.objects.match((T('a') | T('b')) & (T('c') | T('d')) & T('0'))
+        self.assert_match(qs, '(((a) | (b)) & ((c) | (d)) & (0))')
+
 
 class ManticoreRouterTestCase(BaseTestCase):
     databases = {'default', 'manticore'}
