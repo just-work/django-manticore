@@ -179,6 +179,10 @@ class Match(SphinxQLNode):
     # duck typing for Django ORM
     contains_aggregate = False
 
+    def add(self, *expressions):
+        """ Inplace extending match query."""
+        self.expressions.extend(expressions)
+
     # noinspection PyUnusedLocal
     def as_sql(self, compiler, connection):
         sphinxql, params = self.as_sphinxql()

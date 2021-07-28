@@ -10,9 +10,6 @@ class SphinxQLNode:
         self.expressions = list(expressions)
         self.connector = connector
 
-    def add(self, *expressions):
-        self.expressions.extend(expressions)
-
     def as_sphinxql(self):
         sphinxql = []
         params = []
@@ -28,9 +25,9 @@ class SphinxQLNode:
     def _combine(self, other, connector):
         if self.connector == connector:
             if isinstance(other, SphinxQLNode):
-                self.add(*other.expressions)
+                self.expressions.extend(other.expressions)
             else:
-                self.add(other)
+                self.expressions.append(other)
             return self
         return self.__class__(self, other, connector=connector)
 
