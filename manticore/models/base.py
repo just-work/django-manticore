@@ -9,7 +9,8 @@ __all__ = ['SearchIndex']
 INDEX_OPTIONS = (
     'min_prefix_len',
     'regexp_filter',
-    'blend_chars'
+    'blend_chars',
+    'charset_table',
 )
 
 options.DEFAULT_NAMES += INDEX_OPTIONS
