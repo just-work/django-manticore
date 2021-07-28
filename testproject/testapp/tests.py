@@ -381,6 +381,9 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
         qs = self.model.objects.match((T('second') | T('third')) & T('first'))
         self.assert_match(qs, '(((second) | (third)) & (first))')
 
+        qs = self.model.objects.match(T('first') & (T('second') | T('third')))
+        self.assert_match(qs, '((first) & ((second) | (third)))')
+
 
 class ManticoreRouterTestCase(BaseTestCase):
     databases = {'default', 'manticore'}

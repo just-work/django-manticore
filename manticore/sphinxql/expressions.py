@@ -1,3 +1,7 @@
+"""
+This module contains public interface for SphinxQL domain language.
+"""
+
 from typing import Optional, Union
 
 from manticore.sphinxql.base import SphinxQLCombinable, SphinxQLNode, escape

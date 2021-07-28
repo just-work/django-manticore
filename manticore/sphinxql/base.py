@@ -1,12 +1,23 @@
-from typing import Tuple, Iterable, Any
+"""
+This module contains base classes for SphinxQL domain language.
+"""
 
-from django.db.models.expressions import Combinable
+from typing import Tuple, Iterable, Any
 
 
 class SphinxQLNode:
-    connector = '&'
+    """
+    SphinxQL non-leaf node.
 
-    def __init__(self, *expressions, connector='&'):
+    SphinxQLNode implements a node that combines child nodes with same connector.
+    """
+    AND = "&"
+    OR = "|"
+    MAYBE = "MAYBE"  # Lazy OR
+
+    connector = AND
+
+    def __init__(self, *expressions, connector=AND):
         self.expressions = list(expressions)
         self.connector = connector
 
@@ -22,46 +33,64 @@ class SphinxQLNode:
             return f'({connector.join(sphinxql)})', params
         return connector.join(sphinxql), params
 
-    def _combine(self, other, connector):
+    def _combine(self, other, connector, reverse):
+        if not hasattr(other, 'as_sphinxql'):
+            # Graph can contain only nodes that render SphinxQL expressions.
+            raise TypeError(other)
+
         if self.connector == connector:
-            if isinstance(other, SphinxQLNode):
-                self.expressions.extend(other.expressions)
+            # With same connector we can use same predescence level.
+
+            # Unpacking "other hand" expressions to list from SphinxQLNode
+            expressions = list(getattr(other, 'expressions', [other]))
+            if reverse:
+                expressions.extend(self.expressions)
             else:
-                self.expressions.append(other)
-            return self
+                expressions = self.expressions + expressions
+            return self.__class__(*expressions, connector=connector)
+        # Connector differs, add new level of predescence to graph.
+        if reverse:
+            return self.__class__(other, self, connector=connector)
         return self.__class__(self, other, connector=connector)
 
     def __and__(self, other):
-        return self._combine(other, '&')
+        return self._combine(other, self.AND, False)
 
     def __or__(self, other):
-        return self._combine(other, '|')
+        return self._combine(other, self.OR, False)
 
     def __rand__(self, other):
-        return NotImplemented
+        return self._combine(other, self.AND, True)
 
     def __ror__(self, other):
-        return NotImplemented
+        return self._combine(other, self.OR, True)
 
 
-class SphinxQLCombinable(Combinable):
+class SphinxQLCombinable:
+    """
+    Leaf node class for SphinxQL graph.
+
+    SphinxQLCombinable is a base class for terms and unary operators in SphinxQL.
+
+    It does not provide __init__ signature to allow any signature for child classes.
+    """
     node_class = SphinxQLNode
 
     def __and__(self, other):
-        if isinstance(other, SphinxQLCombinable):
-            return self.node_class(self, other)
-        return NotImplemented
+        return self._connect(other, self.node_class.AND, False)
 
     def __rand__(self, other):
-        return NotImplemented
+        return self._connect(other, self.node_class.AND, True)
 
     def __or__(self, other):
-        if isinstance(other, SphinxQLCombinable):
-            return self.node_class(self, other, connector='|')
-        return NotImplemented
+        return self._connect(other, self.node_class.OR, False)
 
     def __ror__(self, other):
-        return NotImplemented
+        return self._connect(other, self.node_class.OR, True)
+
+    def _connect(self, other, connector, reverse):
+        parts = [other, self] if reverse else [self, other]
+        return self.node_class(*parts, connector=connector)
 
     def as_sphinxql(self) -> Tuple[str, Iterable[Any]]:
         raise NotImplementedError
