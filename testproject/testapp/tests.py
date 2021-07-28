@@ -383,6 +383,12 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
 
         qs = self.model.objects.match(T('first') & (T('second') | T('third')))
         self.assert_match(qs, '((first) & ((second) | (third)))')
+        
+        qs = self.model.objects.match(T('a') & T('b') | T('c') & T('d'))
+        self.assert_match(qs, '(((a) & (b)) | ((c) & (d)))')
+
+        qs = self.model.objects.match(T('0') & (T('a') | T('b')) & (T('c') | T('d')))
+        self.assert_match(qs, '(((0) & ((a) | (b))) & ((c) | (d)))')
 
 
 class ManticoreRouterTestCase(BaseTestCase):

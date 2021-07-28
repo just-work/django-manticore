@@ -38,7 +38,7 @@ class SphinxQLNode:
             # Graph can contain only nodes that render SphinxQL expressions.
             raise TypeError(other)
 
-        if self.connector == connector:
+        if self.connector == connector == other.connector:
             # With same connector we can use same predescence level.
 
             # Unpacking "other hand" expressions to list from SphinxQLNode
