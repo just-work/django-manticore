@@ -38,20 +38,30 @@ class SphinxQLNode:
             # Graph can contain only nodes that render SphinxQL expressions.
             raise TypeError(other)
 
-        if self.connector == connector == other.connector:
-            # With same connector we can use same predescence level.
+        if not hasattr(other, 'expressions'):
+            # Making a node from other element to work only with nodes.
+            other = self.__class__(other, connector=connector)
 
-            # Unpacking "other hand" expressions to list from SphinxQLNode
-            expressions = list(getattr(other, 'expressions', [other]))
-            if reverse:
-                expressions.extend(self.expressions)
-            else:
-                expressions = self.expressions + expressions
-            return self.__class__(*expressions, connector=connector)
-        # Connector differs, add new level of predescence to graph.
-        if reverse:
-            return self.__class__(other, self, connector=connector)
-        return self.__class__(self, other, connector=connector)
+        if self.connector == connector:
+            # We don't need brackets on self, because new connector is same
+            # (first & first) & (other) = first & first & (other)
+            first = self.expressions
+        else:
+            # self connector is different from new one, adding brackets to self
+            first = (self,)
+
+        if connector == other.connector:
+            # We don't need brackeds on another side, because new connector is
+            # equal to another one:
+            # (first) & (other & other) == (first) & other & other
+            second = other.expressions
+        else:
+            second = (other,)
+
+        # Handle reversed connection
+        expressions = (*second, *first) if reverse else (*first, *second)
+
+        return self.__class__(*expressions, connector=connector)
 
     def __and__(self, other):
         return self._combine(other, self.AND, False)
@@ -75,7 +85,6 @@ class SphinxQLCombinable:
     It does not provide __init__ signature to allow any signature for child classes.
     """
     node_class = SphinxQLNode
-    connector = node_class.AND  # For compatibility with SphinxQLNode
 
     def __and__(self, other):
         return self._connect(other, self.node_class.AND, False)

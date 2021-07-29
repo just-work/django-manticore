@@ -391,15 +391,18 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
 
         qs = self.model.objects.match(T('first') & (T('second') | T('third')))
         self.assert_match(qs, '((first) & ((second) | (third)))')
-        
+
         qs = self.model.objects.match(T('a') & T('b') | T('c') & T('d'))
         self.assert_match(qs, '(((a) & (b)) | ((c) & (d)))')
 
         qs = self.model.objects.match(T('0') & (T('a') | T('b')) & (T('c') | T('d')))
-        self.assert_match(qs, '(((0) & ((a) | (b))) & ((c) | (d)))')
+        self.assert_match(qs, '((0) & ((a) | (b)) & ((c) | (d)))')
 
         qs = self.model.objects.match((T('a') | T('b')) & (T('c') | T('d')) & T('0'))
         self.assert_match(qs, '(((a) | (b)) & ((c) | (d)) & (0))')
+
+        qs = self.model.objects.match(T('0') & (T('a') | T('b') | T('c')))
+        self.assert_match(qs, '((0) & ((a) | (b) | (c)))')
 
     def test_options_clause(self):
         qs = self.model.objects.options(ranker='wordcount', max_matches=3).match('xxx')
