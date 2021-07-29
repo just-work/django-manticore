@@ -393,6 +393,13 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
         qs = self.model.objects.match((T('a') | T('b')) & (T('c') | T('d')) & T('0'))
         self.assert_match(qs, '(((a) | (b)) & ((c) | (d)) & (0))')
 
+    def test_options_clause(self):
+        qs = self.model.objects.options(ranker='wordcount', max_matches=3).match('xxx')
+        with utils.CaptureQueriesContext(connections['manticore']) as ctx:
+            list(qs)
+        sql = ctx.captured_queries[-1]['sql']
+        self.assertTrue(sql.endswith(" OPTION ranker = 'wordcount', max_matches = 3"))
+
 
 class ManticoreRouterTestCase(BaseTestCase):
     databases = {'default', 'manticore'}

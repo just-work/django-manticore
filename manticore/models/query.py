@@ -1,19 +1,31 @@
 import operator
 from functools import reduce
 
-from django.db.models import query
+from django.db.models.query import QuerySet
 from django.db.models.sql import AND
 
+from manticore.models import sql
 from manticore.sphinxql.expressions import T, Match, F
 from manticore.sphinxql.base import SphinxQLCombinable, SphinxQLNode
 
 
-class SearchQuerySet(query.QuerySet):
+class SearchQuerySet(QuerySet):
+
+    def __init__(self, model=None, query=None, using=None, hints=None):
+        query = query or sql.SearchQuery(model)
+        super().__init__(model, query, using, hints)
+
     def match(self, *args, **kwargs):
         """ Very large usage description here."""
         qs: SearchQuerySet = self._clone()
         expression = self._build_match_expression(*args, **kwargs)
         qs._match_expression().add(expression)
+        return qs
+
+    def options(self, **kwargs):
+        """ Adds OPTIONS clause to search query."""
+        qs: SearchQuerySet = self._clone()
+        qs.query.options.update(kwargs)
         return qs
 
     @staticmethod

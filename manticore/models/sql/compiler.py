@@ -33,7 +33,16 @@ class SphinxQLCompiler(compiler.SQLCompiler):
             # to call super().as_sql again for some django internal side effects
             pass
 
-        return super().as_sql(with_limits, with_col_aliases)
+        sql, params = super().as_sql(with_limits, with_col_aliases)
+        if getattr(self.query, 'options', False):
+            options, options_params = [], []
+            for k, v in self.query.options.items():
+                options.append(f'{k} = %s')
+                options_params.append(v)
+            options_sql = ', '.join(options)
+            sql = f'{sql} OPTION {options_sql}'
+            params += tuple(options_params)
+        return sql, params
 
     def __compile_col(self, node: expressions.Col):
         qn = self.quote_name_unless_alias
