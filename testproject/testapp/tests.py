@@ -227,6 +227,14 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
         qs = self.model.objects.all().values_list('id', flat=True)
         self.assertListEqual(list(qs), expected[:3] + expected[7:])
 
+    def test_unconditional_delete(self):
+        """ unconditional delete is made with truncate rtindex query."""
+        with utils.CaptureQueriesContext(connections['manticore']) as ctx:
+            self.model.objects.all().delete()
+        sql = ctx.captured_queries[-1]['sql']
+        self.assertTrue(sql.startswith('TRUNCATE RTINDEX '))
+        self.assertEqual(self.model.objects.count(), 0)
+
     def test_bulk_create(self):
         """ bulk_creates sets primary key value."""
         objs = [self.model(**self.defaults) for _ in range(10)]

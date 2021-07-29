@@ -108,4 +108,8 @@ class SQLDeleteCompiler(compiler.SQLDeleteCompiler, SphinxQLCompiler):
         # mark table name to be quoted with test database prefix, see
         # ManticoreOperations.quote_name
         query.base_table = self.connection.ops.mark_table_name(query.base_table)
+        if len(query.where.children) == 0:
+            # unconditional delete is not supported, using truncate.
+            table_name = self.connection.ops.quote_name(query.base_table)
+            return f"TRUNCATE RTINDEX {table_name}", ()
         return super()._as_sql(query)
