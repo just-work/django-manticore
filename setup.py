@@ -72,7 +72,7 @@ setup(
         'Django>=3.1,<3.3',
     ],
     classifiers=[
-        'Development Status :: 1 - Planning',
+        'Development Status :: 4 - Beta',
         'Environment :: Console',
         'Framework :: Django :: 2.2',
         'Framework :: Django :: 3.0',
@@ -83,6 +83,7 @@ setup(
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
         'Topic :: Database :: Database Engines/Servers',
         'Topic :: Software Development :: Libraries',
         'Topic :: System :: Distributed Computing',

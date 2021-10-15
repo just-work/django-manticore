@@ -8,9 +8,9 @@ jobs:
     steps:
     - uses: actions/checkout@master
     - name: Setup Python
-      uses: actions/setup-python@master
+      uses: actions/setup-python@v2
       with:
-        python-version: 3.9
+        python-version: '3.x'
     - name: Generate coverage report
       run: |
         docker run --name manticore -v /tmp/:/var/lib/manticore -p 127.0.0.1:9306:9306 -d manticoresearch/manticore
