@@ -59,6 +59,10 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
         """
         Adds new column to table and performs update of default value
         """
+        # noinspection PyProtectedMember
+        opts: Options = model._meta
+        # mark table name to set database name prefix for created tables
+        opts.db_table = self.connection.ops.mark_table_name(opts.db_table)
         # calling BaseDatabaseSchemaEditor.add_field to skip mysql
         # implementation
         super(schema.DatabaseSchemaEditor, self).add_field(model, field)
