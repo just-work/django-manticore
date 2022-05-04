@@ -37,8 +37,13 @@ class SphinxQLCompiler(compiler.SQLCompiler):
         if getattr(self.query, 'options', False):
             options, options_params = [], []
             for k, v in self.query.options.items():
-                options.append(f'{k} = %s')
-                options_params.append(v)
+                if hasattr(v, 'as_sql'):
+                    v_sql, v_params = v.as_sql(self, self.connection)
+                    options.append(f'{k} = {v_sql}')
+                    options_params.extend(v_params)
+                else:
+                    options.append(f'{k} = %s')
+                    options_params.append(v)
             options_sql = ', '.join(options)
             sql = f'{sql} OPTION {options_sql}'
             params += tuple(options_params)

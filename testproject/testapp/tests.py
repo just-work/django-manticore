@@ -2,10 +2,12 @@ from copy import deepcopy
 from datetime import timedelta
 
 from django.db import connections
+from django.db.models import Value, OrderBy
 from django.test import utils
 from django.utils import timezone
 from django_testing_utils.mixins import BaseTestCase
 
+from manticore.models.functions import Expr, Export, Weight
 from manticore.routers import ManticoreRouter, is_search_index
 from manticore.sphinxql.expressions import F, T, P
 from testproject.testapp import models
@@ -405,11 +407,40 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
         self.assert_match(qs, '((0) & ((a) | (b) | (c)))')
 
     def test_options_clause(self):
-        qs = self.model.objects.options(ranker='wordcount', max_matches=3).match('xxx')
+        qs = self.model.objects.options(
+            ranker='wordcount', max_matches=3).match('xxx')
         with utils.CaptureQueriesContext(connections['manticore']) as ctx:
             list(qs)
         sql = ctx.captured_queries[-1]['sql']
-        self.assertTrue(sql.endswith(" OPTION ranker = 'wordcount', max_matches = 3"))
+        self.assertTrue(sql.endswith(
+            " OPTION ranker = 'wordcount', max_matches = 3"))
+
+    def test_expr_ranker(self):
+        qs = self.model.objects.options(
+            ranker=Expr(Value("sum(wordcount)")))
+        with utils.CaptureQueriesContext(connections['manticore']) as ctx:
+            list(qs)
+        sql = ctx.captured_queries[-1]['sql']
+        self.assertTrue(sql.endswith(
+            " OPTION ranker = expr('sum(wordcount)')"))
+
+    def test_export_ranker(self):
+        qs = self.model.objects.options(
+            ranker=Export(Value("sum(wordcount)")))
+        with utils.CaptureQueriesContext(connections['manticore']) as ctx:
+            list(qs)
+        sql = ctx.captured_queries[-1]['sql']
+        self.assertTrue(sql.endswith(
+            " OPTION ranker = export('sum(wordcount)')"))
+
+    def test_order_by_weight(self):
+        qs = self.model.objects.order_by(
+            OrderBy(Weight(), descending=True)
+        )
+        with utils.CaptureQueriesContext(connections['manticore']) as ctx:
+            list(qs)
+        sql = ctx.captured_queries[-1]['sql']
+        self.assertIn(" ORDER BY weight() DESC ", sql)
 
 
 class ManticoreRouterTestCase(BaseTestCase):
