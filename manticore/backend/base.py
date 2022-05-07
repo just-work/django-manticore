@@ -16,6 +16,9 @@ class TableName(str):
     # table name marker used in quote_name for adding database name prefix
     # to table names
     is_table_name = True
+    # skip cluster marker used in quote_name to prevent adding cluster prefix
+    # to table names, because tables can be only created without cluster.
+    skip_cluster = False
 
 
 class DatabaseWrapper(base.DatabaseWrapper):
