@@ -65,11 +65,22 @@ class DatabaseSchemaEditor(schema.DatabaseSchemaEditor):
         opts.db_table = self.connection.ops.mark_table_name(opts.db_table)
         # calling BaseDatabaseSchemaEditor.add_field to skip mysql
         # implementation
+        # noinspection PyUnresolvedReferences
         super(schema.DatabaseSchemaEditor, self).add_field(model, field)
 
         if (self.skip_default(field) and
                 field.default not in (None, NOT_PROVIDED)):
             effective_default = self.effective_default(field)
+
+            if isinstance(field, fields.RTField):
+                if effective_default != '':
+                    # RTField update is not supported by manticore, and there
+                    # is no data to preform REPLACE query (INSERT basically).
+                    raise ValueError("RTField default must be ''")
+                else:
+                    # empty string is default by default, no update is necessary
+                    return
+
             # UPDATE needs WHERE clause
             # noinspection SqlNoDataSourceInspection,PyProtectedMember
             self.execute(
