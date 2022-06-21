@@ -3,6 +3,7 @@ from functools import reduce
 
 from django.db.models.query import QuerySet
 from django.db.models.sql import AND
+from django.db.models.expressions import RawSQL
 
 from manticore.models import sql
 from manticore.sphinxql.expressions import T, Match, F
@@ -25,6 +26,11 @@ class SearchQuerySet(QuerySet):
     def options(self, **kwargs):
         """ Adds OPTIONS clause to search query."""
         qs: SearchQuerySet = self._clone()
+        for item in kwargs:
+            if not isinstance(kwargs[item], dict):
+                continue
+            i = ', '.join(f'`{k}`={v}' for k, v in kwargs[item].items())
+            kwargs[item] = RawSQL(i, [])
         qs.query.options.update(kwargs)
         return qs
 

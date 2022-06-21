@@ -3,6 +3,7 @@ from datetime import timedelta
 
 from django.db import connections
 from django.db.models import Value, OrderBy
+from django.db.models.expressions import RawSQL
 from django.test import utils
 from django.utils import timezone
 from django_testing_utils.mixins import BaseTestCase
@@ -432,6 +433,18 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
         sql = ctx.captured_queries[-1]['sql']
         self.assertTrue(sql.endswith(
             " OPTION ranker = export('sum(wordcount)')"))
+
+    def test_dict_field_weights(self):
+        qs = self.model.objects.options(
+            field_weights={'title': 1, 'name': 2}
+        )
+        print(qs.query)
+        with utils.CaptureQueriesContext(connections['manticore']) as ctx:
+            list(qs)
+        sql = ctx.captured_queries[-1]['sql']
+        print(sql, flush=True)
+        self.assertTrue(sql.endswith(
+            "OPTION field_weights = (`title`=1, `name`=2)"))
 
     def test_order_by_weight(self):
         qs = self.model.objects.order_by(
