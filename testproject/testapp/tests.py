@@ -436,15 +436,22 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
 
     def test_dict_field_weights(self):
         qs = self.model.objects.options(
-            field_weights={'title': 1, 'name': 2}
+            field_weights={'attr_bigint': 1, 'attr_float': 100}
         )
-        print(qs.query)
         with utils.CaptureQueriesContext(connections['manticore']) as ctx:
             list(qs)
         sql = ctx.captured_queries[-1]['sql']
-        print(sql, flush=True)
+        print(sql)
         self.assertTrue(sql.endswith(
-            "OPTION field_weights = (`title`=1, `name`=2)"))
+            "OPTION field_weights = (`attr_bigint`=1, `attr_float`=100)"))
+
+    def test_dict_field_weights_not_in_model(self):
+        """ Raise ValueError if field not in model """
+        qs = self.model.objects.options(
+            field_weights={'name': 1, 'title': 1000}
+        )
+        with self.assertRaises(ValueError):
+            list(qs)
 
     def test_order_by_weight(self):
         qs = self.model.objects.order_by(
