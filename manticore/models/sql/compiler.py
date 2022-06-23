@@ -5,9 +5,11 @@ from django.db.models import expressions, lookups
 from django.db.models.sql.datastructures import BaseTable
 from django.db.models.sql.where import ExtraWhere, AND
 
+from manticore.models.fields import RTField
 from manticore.models.lookups import InFunction
 from manticore.models.sql.where import ManticoreWhereNode
 from manticore.sphinxql.expressions import Match
+
 
 class SphinxQLCompiler(compiler.SQLCompiler):
 
@@ -40,7 +42,7 @@ class SphinxQLCompiler(compiler.SQLCompiler):
                     v_sql, v_params = v.as_sql(self, self.connection)
                     options.append(f'{k} = {v_sql}')
                     options_params.extend(v_params)
-                elif isinstance(v, dict):
+                elif isinstance(v, dict) and k == 'field_weights':
                     dict_option, dict_params = self._compile_dict(v)
                     options.append(f'{k} = ({dict_option})')
                     options_params.extend(dict_params)
@@ -101,11 +103,16 @@ class SphinxQLCompiler(compiler.SQLCompiler):
         params_list = param_dict.values()
         return params_str, params_list
 
-
     def _check_field_models(self, fields):
         """ Сhecks that the field is in the model """
-        model_fields = self.query.model._meta.get_fields()
-        model_field_names = [f.name for f in model_fields]
+        index_fields = self.query.model._meta.get_fields()
+        index_field_dict = {f.name: f for f in index_fields}
         for field in fields:
-            if field not in model_field_names:
-                raise ValueError(f'Model not consist field "{field}"')
+            if field not in index_field_dict:
+                raise ValueError(f'Model not consist field: [{field}]')
+
+            if not isinstance(index_field_dict[field], RTField):
+                raise ValueError(
+                    f'Fields specified in field_weights '
+                    f'option not found : [{field}]'
+                )
