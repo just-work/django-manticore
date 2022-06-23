@@ -9,7 +9,6 @@ from manticore.models.lookups import InFunction
 from manticore.models.sql.where import ManticoreWhereNode
 from manticore.sphinxql.expressions import Match
 
-
 class SphinxQLCompiler(compiler.SQLCompiler):
 
     def compile(self, node):
@@ -97,9 +96,11 @@ class SphinxQLCompiler(compiler.SQLCompiler):
 
     def _compile_dict(self, param_dict: dict):
         self._check_field_models(param_dict.keys())
-        params_str = ', '.join([f'`{k}`=%s' for k in param_dict.keys()])
+        qn = self.connection.ops.quote_name
+        params_str = ', '.join([f'{qn(k)}=%s' for k in param_dict])
         params_list = param_dict.values()
         return params_str, params_list
+
 
     def _check_field_models(self, fields):
         """ Сhecks that the field is in the model """

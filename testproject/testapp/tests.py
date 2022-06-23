@@ -3,7 +3,6 @@ from datetime import timedelta
 
 from django.db import connections
 from django.db.models import Value, OrderBy
-from django.db.models.expressions import RawSQL
 from django.test import utils
 from django.utils import timezone
 from django_testing_utils.mixins import BaseTestCase
@@ -441,7 +440,6 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
         with utils.CaptureQueriesContext(connections['manticore']) as ctx:
             list(qs)
         sql = ctx.captured_queries[-1]['sql']
-        print(sql)
         self.assertTrue(sql.endswith(
             "OPTION field_weights = (`attr_bigint`=1, `attr_float`=100)"))
 
