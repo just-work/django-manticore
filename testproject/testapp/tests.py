@@ -11,6 +11,7 @@ from manticore.models.functions import Expr, Export, Weight
 from manticore.routers import ManticoreRouter, is_search_index
 from manticore.sphinxql.expressions import F, T, P
 from testproject.testapp import models
+from django.core.exceptions import FieldError
 
 
 class SearchIndexTestCaseBase(BaseTestCase):
@@ -432,6 +433,39 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
         sql = ctx.captured_queries[-1]['sql']
         self.assertTrue(sql.endswith(
             " OPTION ranker = export('sum(wordcount)')"))
+
+    def test_index_weights(self):
+        qs = self.model.objects.options(
+            index_weights={'index': 1}
+        )
+        with utils.CaptureQueriesContext(connections['manticore']) as ctx:
+            list(qs)
+        sql = ctx.captured_queries[-1]['sql']
+        self.assertTrue(sql.endswith(
+            "OPTION index_weights = (`index`=1)"))
+
+    def test_dict_field_weights(self):
+        qs = self.model.objects.options(
+            field_weights={'sphinx_field': 1, 'other_field': 100}
+        )
+        with utils.CaptureQueriesContext(connections['manticore']) as ctx:
+            list(qs)
+        sql = ctx.captured_queries[-1]['sql']
+        self.assertTrue(sql.endswith(
+            "OPTION field_weights = (`sphinx_field`=1, `other_field`=100)"))
+
+    def test_dict_field_weights_not_in_model(self):
+        """ Raise ValueError if field not in model """
+        with self.assertRaises(ValueError) as cm:
+            self.model.objects.options(field_weights={'name': 100})
+        self.assertIn("Field for model not found: [name]", cm.exception.args)
+
+    def test_field_has_no_weight(self):
+        """ Raise ValueError if field hos not weight attribute """
+        with self.assertRaises(ValueError) as cm:
+            self.model.objects.options(field_weights={'attr_bigint': 1})
+        message = 'Field is not a full-text field: [attr_bigint]'
+        self.assertIn(message, cm.exception.args)
 
     def test_order_by_weight(self):
         qs = self.model.objects.order_by(

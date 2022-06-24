@@ -41,6 +41,10 @@ class SphinxQLCompiler(compiler.SQLCompiler):
                     v_sql, v_params = v.as_sql(self, self.connection)
                     options.append(f'{k} = {v_sql}')
                     options_params.extend(v_params)
+                elif isinstance(v, dict):
+                    dict_option, dict_params = self._compile_dict(v)
+                    options.append(f'{k} = ({dict_option})')
+                    options_params.extend(dict_params)
                 else:
                     options.append(f'{k} = %s')
                     options_params.append(v)
@@ -90,3 +94,10 @@ class SphinxQLCompiler(compiler.SQLCompiler):
     def _compile_in(self, node: lookups.In):
         lookup = InFunction(node.lhs, node.rhs)
         return lookup.as_sql(self, self.connection)
+
+    def _compile_dict(self, param_dict: dict):
+        qn = self.connection.ops.quote_name
+        params_str = ', '.join([f'{qn(k)}=%s' for k in param_dict])
+        params_list = param_dict.values()
+        return params_str, params_list
+
