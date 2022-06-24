@@ -28,7 +28,7 @@ class SearchQuerySet(QuerySet):
         """ Adds OPTIONS clause to search query."""
         qs: SearchQuerySet = self._clone()
         for key, value in kwargs.items():
-            if isinstance(value, dict):
+            if key == 'field_weights' and isinstance(value, dict):
                 self._check_field_models(value)
         qs.query.options.update(kwargs)
         return qs
@@ -67,10 +67,12 @@ class SearchQuerySet(QuerySet):
         """ Сhecks that the field is in the model """
         index_fields = self.query.model._meta.get_fields()
         index_field_dict = {f.name: f for f in index_fields}
-        self.query.names_to_path([*fields], self.query.get_meta())
         for field in fields:
+            if field not in index_field_dict:
+                raise ValueError(f'Model not consist field: [{field}]')
+
             if not isinstance(index_field_dict[field], RTField):
-                raise FieldError(
+                raise ValueError(
                     f'Fields specified in field_weights '
                     f'option not found : [{field}]'
                 )

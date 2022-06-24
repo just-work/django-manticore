@@ -434,6 +434,16 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
         self.assertTrue(sql.endswith(
             " OPTION ranker = export('sum(wordcount)')"))
 
+    def test_index_weights(self):
+        qs = self.model.objects.options(
+            index_weights={'index': 1}
+        )
+        with utils.CaptureQueriesContext(connections['manticore']) as ctx:
+            list(qs)
+        sql = ctx.captured_queries[-1]['sql']
+        self.assertTrue(sql.endswith(
+            "OPTION index_weights = (`index`=1)"))
+
     def test_dict_field_weights(self):
         qs = self.model.objects.options(
             field_weights={'sphinx_field': 1, 'other_field': 100}
@@ -445,15 +455,15 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
             "OPTION field_weights = (`sphinx_field`=1, `other_field`=100)"))
 
     def test_dict_field_weights_not_in_model(self):
-        """ Raise FieldError if field not in model """
-        with self.assertRaises(FieldError):
-            self.model.objects.options(field_weights={'test_title': 1})
+        """ Raise ValueError if field not in model """
+        with self.assertRaises(ValueError) as cm:
+            self.model.objects.options(field_weights={'name': 100})
+        self.assertIn("Model not consist field: [name]", cm.exception.args)
 
     def test_field_has_no_weight(self):
         """ Raise ValueError if field hos not weight attribute """
-        with self.assertRaises(FieldError) as cm:
+        with self.assertRaises(ValueError) as cm:
             self.model.objects.options(field_weights={'attr_bigint': 1})
-
         message = ('Fields specified in field_weights option '
                    'not found : [attr_bigint]')
         self.assertIn(message, cm.exception.args)
