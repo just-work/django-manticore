@@ -11,6 +11,7 @@ from manticore.models.functions import Expr, Export, Weight
 from manticore.routers import ManticoreRouter, is_search_index
 from manticore.sphinxql.expressions import F, T, P
 from testproject.testapp import models
+from django.core.exceptions import FieldError
 
 
 class SearchIndexTestCaseBase(BaseTestCase):
@@ -444,21 +445,15 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
             "OPTION field_weights = (`sphinx_field`=1, `other_field`=100)"))
 
     def test_dict_field_weights_not_in_model(self):
-        """ Raise ValueError if field not in model """
-        qs = self.model.objects.options(
-            field_weights={'name': 1, 'title': 1000}
-        )
-        with self.assertRaises(ValueError) as cm:
-            list(qs)
-        self.assertIn("Model not consist field: [name]", cm.exception.args)
+        """ Raise FieldError if field not in model """
+        with self.assertRaises(FieldError):
+            self.model.objects.options(field_weights={'test_title': 1})
 
     def test_field_has_no_weight(self):
         """ Raise ValueError if field hos not weight attribute """
-        qs = self.model.objects.options(
-            field_weights={'attr_bigint': 1}
-        )
-        with self.assertRaises(ValueError)as cm:
-            list(qs)
+        with self.assertRaises(FieldError) as cm:
+            self.model.objects.options(field_weights={'attr_bigint': 1})
+
         message = ('Fields specified in field_weights option '
                    'not found : [attr_bigint]')
         self.assertIn(message, cm.exception.args)
