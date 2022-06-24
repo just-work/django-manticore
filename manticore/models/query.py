@@ -30,8 +30,8 @@ class SearchQuerySet(QuerySet):
 
         if field_weights and isinstance(field_weights, dict):
             self._check_model_fields(field_weights)
+            kwargs.update({'field_weights': field_weights})
 
-        kwargs.update({'field_weights': field_weights})
         qs.query.options.update(kwargs)
         return qs
 
