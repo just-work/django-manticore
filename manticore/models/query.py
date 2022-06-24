@@ -24,12 +24,14 @@ class SearchQuerySet(QuerySet):
         qs._match_expression().add(expression)
         return qs
 
-    def options(self, **kwargs):
+    def options(self, field_weights=None, **kwargs):
         """ Adds OPTIONS clause to search query."""
         qs: SearchQuerySet = self._clone()
-        for key, value in kwargs.items():
-            if key == 'field_weights' and isinstance(value, dict):
-                self._check_field_models(value)
+
+        if field_weights and isinstance(field_weights, dict):
+            self._check_model_fields(field_weights)
+
+        kwargs.update({'field_weights': field_weights})
         qs.query.options.update(kwargs)
         return qs
 
@@ -63,16 +65,15 @@ class SearchQuerySet(QuerySet):
 
         return match
 
-    def _check_field_models(self, fields):
+    def _check_model_fields(self, fields):
         """ Сhecks that the field is in the model """
         index_fields = self.query.model._meta.get_fields()
         index_field_dict = {f.name: f for f in index_fields}
         for field in fields:
             if field not in index_field_dict:
-                raise ValueError(f'Model not consist field: [{field}]')
+                raise ValueError(f'Field for model not found: [{field}]')
 
             if not isinstance(index_field_dict[field], RTField):
                 raise ValueError(
-                    f'Fields specified in field_weights '
-                    f'option not found : [{field}]'
+                    f'Field is not a full-text field: [{field}]'
                 )

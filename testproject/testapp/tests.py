@@ -458,14 +458,13 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
         """ Raise ValueError if field not in model """
         with self.assertRaises(ValueError) as cm:
             self.model.objects.options(field_weights={'name': 100})
-        self.assertIn("Model not consist field: [name]", cm.exception.args)
+        self.assertIn("Field for model not found: [name]", cm.exception.args)
 
     def test_field_has_no_weight(self):
         """ Raise ValueError if field hos not weight attribute """
         with self.assertRaises(ValueError) as cm:
             self.model.objects.options(field_weights={'attr_bigint': 1})
-        message = ('Fields specified in field_weights option '
-                   'not found : [attr_bigint]')
+        message = 'Field is not a full-text field: [attr_bigint]'
         self.assertIn(message, cm.exception.args)
 
     def test_order_by_weight(self):
