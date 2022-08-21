@@ -68,6 +68,8 @@ class ManticoreFeatures(base.DatabaseFeatures):
     # enables returning primary keys from LAST_INSERT_ID() in bulk_create
     can_return_rows_from_bulk_insert = True
     can_return_columns_from_insert = True
+    # manticore version history does not match MariaDB/MySQL
+    minimum_database_version = (3, 0, 0)
 
 
 class ManticoreIntrospection(base.DatabaseIntrospection):
