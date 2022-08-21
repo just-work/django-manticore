@@ -155,7 +155,7 @@ class ManticoreOperations(base.DatabaseOperations):
         """ Converts datetime value to unix timestamp."""
         if isinstance(value, datetime):
             # closest manticore datetime equivalent is attr_timestamp
-            return int(timezone.utc.normalize(value).timestamp())
+            return int(value.astimezone(timezone.utc).timestamp())
         return super().adapt_datetimefield_value(value)
 
     def convert_datetimefield_value(self, value, expression, connection):
