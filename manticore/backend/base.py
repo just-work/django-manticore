@@ -1,5 +1,6 @@
 from datetime import datetime
 
+import django
 from django.db import ProgrammingError
 from django.db.backends.base.introspection import TableInfo
 from django.db.backends.mysql import base
@@ -68,6 +69,10 @@ class ManticoreFeatures(base.DatabaseFeatures):
     # enables returning primary keys from LAST_INSERT_ID() in bulk_create
     can_return_rows_from_bulk_insert = True
     can_return_columns_from_insert = True
+    # manticore version history does not match MariaDB/MySQL
+    minimum_database_version = (3, 0, 0)
+    # manticore does not support expression indices
+    supports_expression_indexes = False
 
 
 class ManticoreIntrospection(base.DatabaseIntrospection):
@@ -148,8 +153,19 @@ class ManticoreOperations(base.DatabaseOperations):
             return name
         return TableName(name)
 
-    def insert_statement(self, ignore_conflicts=False):
-        return 'REPLACE INTO' if ignore_conflicts else 'INSERT INTO'
+    def insert_statement(self, ignore_conflicts=False, on_conflict=None):
+        """
+        Decides between INSERT and REPLACE basing on conflict resolving flags.
+        :param ignore_conflicts: flag for Django>=3.1,<4.1
+        :param on_conflict: flag for Django>=4.1
+        :return: REPLACE INTO if flag is True or INSERT INTO if flag is False
+        """
+        if django.VERSION < (4, 1):
+            replace = ignore_conflicts
+        else:
+            # parameter renamed in django-4.1
+            replace = bool(on_conflict)
+        return 'REPLACE INTO' if replace else 'INSERT INTO'
 
     def adapt_datetimefield_value(self, value):
         """ Converts datetime value to unix timestamp."""
@@ -167,7 +183,8 @@ class ManticoreOperations(base.DatabaseOperations):
         return super().convert_datetimefield_value(
             value, expression, connection)
 
-    def sql_flush(self, style, tables, *, reset_sequences=False, allow_cascade=False):
+    def sql_flush(self, style, tables, *, reset_sequences=False,
+                  allow_cascade=False):
         """ Implement flushing manticore database as truncating all tables."""
         if tables:
             sql = []
@@ -236,4 +253,5 @@ class ManticoreCreation(base.DatabaseCreation):
                 c.execute(f"CREATE TABLE {target_database_name}__{table.name} "
                           f"LIKE {source_database_name}__{table.name}")
                 if cluster:
-                    c.execute(f"ALTER CLUSTER {cluster} ADD {target_database_name}__{table.name}")
+                    c.execute(
+                        f"ALTER CLUSTER {cluster} ADD {target_database_name}__{table.name}")
