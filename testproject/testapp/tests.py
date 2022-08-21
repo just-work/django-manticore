@@ -20,7 +20,7 @@ class SearchIndexTestCaseBase(BaseTestCase):
 
     def setUp(self):
         super().setUp()
-        self.now = timezone.utc.normalize(timezone.now()).replace(microsecond=0)
+        self.now = timezone.now().astimezone(timezone.utc).replace(microsecond=0)
         self.defaults = self.get_model_defaults()
         with connections['manticore'].cursor() as c:
             c.execute("SHOW TABLES LIKE %s", ('testapp_testmodel',))
