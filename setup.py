@@ -59,7 +59,7 @@ def get_version():
 
 setup(
     name=package_name,
-    version=get_version() or 'dev',
+    version=get_version() or '0.0.0.dev1',
     long_description=long_description,
     long_description_content_type='text/markdown',
     packages=find_packages(where='.', exclude=['testproject', 'testproject.*']),
@@ -69,7 +69,7 @@ setup(
     author_email='zimbler@gmail.com',
     description='Manticoresearch database backend for Django',
     install_requires=[
-        'Django>=3.1,<4.2',
+        'Django>=3.1,<4.3',
     ],
     classifiers=[
         'Development Status :: 4 - Beta',
@@ -80,6 +80,7 @@ setup(
         'Framework :: Django :: 3.2',
         'Framework :: Django :: 4.0',
         'Framework :: Django :: 4.1',
+        'Framework :: Django :: 4.2',
         'Operating System :: POSIX',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',

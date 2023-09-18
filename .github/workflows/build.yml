@@ -23,6 +23,6 @@ jobs:
           sed -i '/Django==.*/d' ./requirements.txt # delete django dependency
       - name: Test with tox
         run: |
-          docker run --name manticore -v /tmp/:/var/lib/manticore -p 127.0.0.1:9306:9306 -d manticoresearch/manticore
+          docker run --name manticore -v /tmp/:/var/lib/manticore -p 127.0.0.1:9306:9306 -d manticoresearch/manticore:6.0.0
           tox
           python setup.py sdist bdist_wheel install
