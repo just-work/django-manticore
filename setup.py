@@ -69,7 +69,7 @@ setup(
     author_email='zimbler@gmail.com',
     description='Manticoresearch database backend for Django',
     install_requires=[
-        'Django>=3.1,<4.3',
+        'Django>=2.2,<4.3',
     ],
     classifiers=[
         'Development Status :: 4 - Beta',
@@ -82,11 +82,11 @@ setup(
         'Framework :: Django :: 4.1',
         'Framework :: Django :: 4.2',
         'Operating System :: POSIX',
-        'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11',
         'Topic :: Database :: Database Engines/Servers',
         'Topic :: Software Development :: Libraries',
         'Topic :: System :: Distributed Computing',

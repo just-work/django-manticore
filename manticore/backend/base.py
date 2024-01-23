@@ -190,7 +190,7 @@ class ManticoreOperations(base.DatabaseOperations):
             sql = []
             for table in tables:
                 table = self.mark_table_name(table)
-                sql.append('%s %s' % (
+                sql.append('%s %s;' % (
                     style.SQL_KEYWORD('TRUNCATE RTINDEX'),
                     style.SQL_FIELD(self.quote_name(table)),
                 ))
