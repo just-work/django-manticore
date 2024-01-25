@@ -69,13 +69,11 @@ setup(
     author_email='zimbler@gmail.com',
     description='Manticoresearch database backend for Django',
     install_requires=[
-        'Django>=2.2,<4.3',
+        'Django>=3.1,<4.3',
     ],
     classifiers=[
         'Development Status :: 4 - Beta',
         'Environment :: Console',
-        'Framework :: Django :: 2.2',
-        'Framework :: Django :: 3.0',
         'Framework :: Django :: 3.1',
         'Framework :: Django :: 3.2',
         'Framework :: Django :: 4.0',
