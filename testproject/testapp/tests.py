@@ -1,6 +1,7 @@
 from copy import deepcopy
 from datetime import timedelta
 
+import django
 from django.db import connections
 from django.db.models import Value, OrderBy
 from django.test import utils
@@ -11,7 +12,6 @@ from manticore.models.functions import Expr, Export, Weight
 from manticore.routers import ManticoreRouter, is_search_index
 from manticore.sphinxql.expressions import F, T, P
 from testproject.testapp import models
-from django.core.exceptions import FieldError
 
 
 class SearchIndexTestCaseBase(BaseTestCase):
@@ -204,10 +204,12 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
         self.assertTrue(created)
         self.assert_object_fields(obj, attr_uint=attr_uint, **values)
 
+        values['attr_uint'] = attr_uint + 1
         obj, created = self.model.objects.update_or_create(
-            values, attr_uint=self.obj.attr_uint)
-        self.assert_object_fields(obj, attr_uint=self.obj.attr_uint,
-                                  **values)
+            values, attr_uint=attr_uint)
+
+        self.assertFalse(created)
+        self.assert_object_fields(obj, **values)
 
     def test_delete_object(self):
         """ DELETE single object works."""
@@ -235,6 +237,13 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
         with utils.CaptureQueriesContext(connections['manticore']) as ctx:
             self.model.objects.all().delete()
         sql = ctx.captured_queries[-1]['sql']
+
+        if django.VERSION >= (4, 2):
+            # In django 4.2 logger now logs transaction management
+            # queries (BEGIN, COMMIT, and ROLLBACK)
+            # https://docs.djangoproject.com/en/4.2/releases/4.2/#logging
+            sql = ctx.captured_queries[-2]['sql']
+
         self.assertTrue(sql.startswith('TRUNCATE RTINDEX '))
         self.assertEqual(self.model.objects.count(), 0)
 
