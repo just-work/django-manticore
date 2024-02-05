@@ -2,8 +2,10 @@ import operator
 from functools import reduce
 
 from django.core.exceptions import FieldError
+from django.db import transaction
 from django.db.models.query import QuerySet
 from django.db.models.sql import AND
+from django.db.models.utils import resolve_callables
 
 from manticore.models import sql
 from manticore.sphinxql.expressions import T, Match, F
@@ -77,3 +79,27 @@ class SearchQuerySet(QuerySet):
                 raise ValueError(
                     f'Field is not a full-text field: [{field}]'
                 )
+
+    def update_or_create(self, defaults=None, **kwargs):
+        """
+        Copy-paste method from Django 4.1 for Django 4.2.
+        Manticore can update records if all fields were passed. 
+        In this method we ignore `update_fields` defined in Django 4.2.
+
+        Look up an object with the given kwargs, updating one with defaults
+        if it exists, otherwise create a new one.
+        Return a tuple (object, created), where created is a boolean
+        specifying whether an object was created.
+        """
+        defaults = defaults or {}
+        self._for_write = True
+        with transaction.atomic(using=self.db):
+            # Lock the row so that a concurrent update is blocked until
+            # update_or_create() has performed its save.
+            obj, created = self.select_for_update().get_or_create(defaults, **kwargs)
+            if created:
+                return obj, created
+            for k, v in resolve_callables(defaults):
+                setattr(obj, k, v)
+            obj.save(using=self.db)
+        return obj, False
