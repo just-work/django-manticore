@@ -1,10 +1,8 @@
-from datetime import datetime
+from datetime import datetime, timezone as datetime_timezone
 
-import django
 from django.db import ProgrammingError
 from django.db.backends.base.introspection import TableInfo
 from django.db.backends.mysql import base
-from django.utils import timezone
 from django.utils.functional import cached_property
 
 from manticore.backend.schema import DatabaseSchemaEditor
@@ -23,17 +21,26 @@ class TableName(str):
 
 
 class DatabaseWrapper(base.DatabaseWrapper):
-    data_types = {
-        **base.DatabaseWrapper.data_types,
-        # overriding model fields mapping to manticore attributes
-        'CharField': 'string',  # attr_string instead of varchar
-        'TextField': 'string',  # attr_string instead of text, which is rt_field
-        # closest equivalent for datetime field in manticore is attr_timestamp
-        'DateTimeField': 'timestamp',
-        'FloatField': 'float',  # attr_float instead of double
-    }
-
     SchemaEditorClass = DatabaseSchemaEditor
+
+    @cached_property
+    def data_types(self):
+        return {
+            **super().data_types,
+            # overriding model fields mapping to manticore attributes
+            'CharField': 'string',  # attr_string instead of varchar
+            'TextField': 'string',  # attr_string instead of text, which is rt_field
+            # closest equivalent for datetime field in manticore is attr_timestamp
+            'DateTimeField': 'timestamp',
+            'FloatField': 'float',  # attr_float instead of double
+        }
+
+    def get_connection_params(self):
+        # NAME is a table prefix in this backend, not a server database.
+        params = super().get_connection_params()
+        params.pop('database', None)
+        params.pop('db', None)
+        return params
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -117,6 +124,11 @@ class ManticoreValidation(base.DatabaseValidation):
 
 class ManticoreOperations(base.DatabaseOperations):
     compiler_module = 'manticore.backend.compiler'
+    integer_field_ranges = {
+        **base.DatabaseOperations.integer_field_ranges,
+        'MultiField': base.DatabaseOperations.integer_field_ranges['PositiveIntegerField'],
+        'BigMultiField': base.DatabaseOperations.integer_field_ranges['BigIntegerField'],
+    }
 
     @property
     def db_name(self):
@@ -153,25 +165,17 @@ class ManticoreOperations(base.DatabaseOperations):
             return name
         return TableName(name)
 
-    def insert_statement(self, ignore_conflicts=False, on_conflict=None):
+    def insert_statement(self, on_conflict=None):
         """
-        Decides between INSERT and REPLACE basing on conflict resolving flags.
-        :param ignore_conflicts: flag for Django>=3.1,<4.1
-        :param on_conflict: flag for Django>=4.1
-        :return: REPLACE INTO if flag is True or INSERT INTO if flag is False
+        Use REPLACE INTO when Django requests conflict resolution.
         """
-        if django.VERSION < (4, 1):
-            replace = ignore_conflicts
-        else:
-            # parameter renamed in django-4.1
-            replace = bool(on_conflict)
-        return 'REPLACE INTO' if replace else 'INSERT INTO'
+        return 'REPLACE INTO' if on_conflict else 'INSERT INTO'
 
     def adapt_datetimefield_value(self, value):
         """ Converts datetime value to unix timestamp."""
         if isinstance(value, datetime):
             # closest manticore datetime equivalent is attr_timestamp
-            return int(value.astimezone(timezone.utc).timestamp())
+            return int(value.astimezone(datetime_timezone.utc).timestamp())
         return super().adapt_datetimefield_value(value)
 
     def convert_datetimefield_value(self, value, expression, connection):
@@ -179,7 +183,7 @@ class ManticoreOperations(base.DatabaseOperations):
         if isinstance(value, int):
             # closest manticore datetime equivalent is attr_timestamp, which
             # stores datetime as unix utc timestamp
-            value = datetime.utcfromtimestamp(value)
+            value = datetime.fromtimestamp(value, datetime_timezone.utc).replace(tzinfo=None)
         return super().convert_datetimefield_value(
             value, expression, connection)
 

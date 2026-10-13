@@ -1,12 +1,10 @@
 from copy import deepcopy
-from datetime import timedelta
+from datetime import timedelta, timezone as datetime_timezone
 
-import django
 from django.db import connections
 from django.db.models import Value, OrderBy
-from django.test import utils
+from django.test import TestCase, utils
 from django.utils import timezone
-from django_testing_utils.mixins import BaseTestCase
 
 from manticore.models.functions import Expr, Export, Weight
 from manticore.routers import ManticoreRouter, is_search_index
@@ -14,13 +12,21 @@ from manticore.sphinxql.expressions import F, T, P
 from testproject.testapp import models
 
 
-class SearchIndexTestCaseBase(BaseTestCase):
+class ManticoreTestCase(TestCase):
+    def assert_object_fields(self, obj, **expected):
+        if obj.pk is not None:
+            obj = type(obj).objects.get(pk=obj.pk)
+        for name, value in expected.items():
+            self.assertEqual(getattr(obj, name), value, name)
+
+
+class SearchIndexTestCaseBase(ManticoreTestCase):
     model = models.TestModel
     databases = {'default', 'manticore'}
 
     def setUp(self):
         super().setUp()
-        self.now = timezone.now().astimezone(timezone.utc).replace(microsecond=0)
+        self.now = timezone.now().astimezone(datetime_timezone.utc).replace(microsecond=0)
         self.defaults = self.get_model_defaults()
         with connections['manticore'].cursor() as c:
             c.execute("SHOW TABLES LIKE %s", ('testapp_testmodel',))
@@ -236,15 +242,11 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
         """ unconditional delete is made with truncate rtindex query."""
         with utils.CaptureQueriesContext(connections['manticore']) as ctx:
             self.model.objects.all().delete()
-        sql = ctx.captured_queries[-1]['sql']
-
-        if django.VERSION >= (4, 2):
-            # In django 4.2 logger now logs transaction management
-            # queries (BEGIN, COMMIT, and ROLLBACK)
-            # https://docs.djangoproject.com/en/4.2/releases/4.2/#logging
-            sql = ctx.captured_queries[-2]['sql']
-
-        self.assertTrue(sql.startswith('TRUNCATE RTINDEX '))
+        truncate_queries = [
+            query['sql'] for query in ctx.captured_queries
+            if query['sql'].startswith('TRUNCATE RTINDEX ')
+        ]
+        self.assertEqual(len(truncate_queries), 1)
         self.assertEqual(self.model.objects.count(), 0)
 
     def test_bulk_create(self):
@@ -486,7 +488,7 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
         self.assertIn(" ORDER BY weight() DESC ", sql)
 
 
-class ManticoreRouterTestCase(BaseTestCase):
+class ManticoreRouterTestCase(ManticoreTestCase):
     databases = {'default', 'manticore'}
 
     def setUp(self):
@@ -536,7 +538,7 @@ class ManticoreRouterTestCase(BaseTestCase):
             'manticore', 'testapp', 'DjangoModel'))
 
 
-class NonTransactionalTestCase(BaseTestCase):
+class NonTransactionalTestCase(ManticoreTestCase):
     databases = {'default', 'manticore'}
 
     def setUp(self):
