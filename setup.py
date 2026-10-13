@@ -8,7 +8,7 @@ package_name = 'django-manticore'
 
 setup(
     name=package_name,
-    version='0.2.0',
+    version='0.3.0',
     python_requires='>=3.10,<3.14',
     long_description=long_description,
     long_description_content_type='text/markdown',
