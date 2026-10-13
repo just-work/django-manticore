@@ -487,6 +487,18 @@ class SearchIndexTestCase(SearchIndexTestCaseBase):
         sql = ctx.captured_queries[-1]['sql']
         self.assertIn(" ORDER BY weight() DESC ", sql)
 
+    def test_match_pagination_preserves_explicit_limits(self):
+        for number in range(5):
+            self.model.objects.create(
+                sphinx_field=f'hello result {number}',
+                attr_uint=number,
+            )
+
+        qs = self.model.objects.match('hello').order_by('attr_uint')
+        self.assertEqual(qs.count(), 6)
+        self.assertEqual(len(list(qs[:5])), 5)
+        self.assertEqual(len(list(qs[5:10])), 1)
+
 
 class ManticoreRouterTestCase(ManticoreTestCase):
     databases = {'default', 'manticore'}
