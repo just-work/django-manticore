@@ -9,7 +9,7 @@ package_name = 'django-manticore'
 setup(
     name=package_name,
     version='0.2.0',
-    python_requires='>=3.10',
+    python_requires='>=3.10,<3.14',
     long_description=long_description,
     long_description_content_type='text/markdown',
     packages=find_packages(where='.', exclude=['testproject', 'testproject.*']),
@@ -19,7 +19,9 @@ setup(
     author_email='zimbler@gmail.com',
     description='Manticoresearch database backend for Django',
     install_requires=[
-        'Django>=4.2,<6',
+        'Django>=4.2,<6; python_version < "3.12"',
+        'Django>=4.2.8,<6; python_version == "3.12"',
+        'Django>=5.1.3,<6; python_version == "3.13"',
         'mysqlclient>=2.2.7,<3',
     ],
     classifiers=[
